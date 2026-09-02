@@ -97,6 +97,7 @@ See [docs/BUILD.md](docs/BUILD.md) for the exact configure/build commands and th
 | [docs/CLI.md](docs/CLI.md) | add or change a `provisioner.exe` command |
 | [docs/PROFILES.md](docs/PROFILES.md) | touch profile loading or ship a profile |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | start any milestone (exit criteria live here) |
+| [docs/tasks/](docs/tasks/) | `MILESTONE-<n>.md` — the ordered checklist for the milestone you are on |
 | [docs/TESTING.md](docs/TESTING.md) | write tests; safety rules for `pnputil`/`winget` |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | make a design choice or add a dependency (file an ADR) |
 

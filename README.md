@@ -45,6 +45,14 @@ architecture docs, and agent working instructions. No application code has been 
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones 1–7 and their exit criteria |
 | [docs/TESTING.md](docs/TESTING.md) | Unit/integration test strategy and safety rules |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Architecture decision log (ADR-style) |
+| [docs/tasks/](docs/tasks/) | Per-milestone implementation checklists (`MILESTONE-1.md` … `MILESTONE-7.md`) |
+
+## Starting implementation
+
+The engine is implemented milestone by milestone. Kick off Milestone 1 by giving the
+implementing agent [GEMINI_INITIAL_PROMPT.md](GEMINI_INITIAL_PROMPT.md) (a model-agnostic
+kickoff prompt). After each milestone is reviewed, hand it the next
+[docs/tasks/MILESTONE-*.md](docs/tasks/).
 
 ## For AI agents
 

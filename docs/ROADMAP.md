@@ -3,6 +3,11 @@
 Build and test at the end of every milestone. Report a change summary + test results, then
 wait for review before starting the next one. Do not jump ahead.
 
+Each milestone has a concrete step-by-step checklist in
+[tasks/](tasks/) — `tasks/MILESTONE-<n>.md`. Give the implementing agent that file when the
+previous milestone is accepted. The scaffold's `GEMINI_INITIAL_PROMPT.md` (repo root) is
+the kickoff for Milestone 1.
+
 ## Milestone 1 — Skeleton + hardware detection
 **Scope:** root `CMakeLists.txt`; `shiftech_core` lib target; `provisioner` exe target;
 `shiftech_tests` target (all building). `SystemInspector` (basic). `DeviceEnumerator` +
