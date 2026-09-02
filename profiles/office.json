@@ -1,0 +1,13 @@
+{
+  "name": "office",
+  "description": "Office / administrative workstation",
+  "applications": [
+    { "id": "Google.Chrome", "required": true },
+    { "id": "7zip.7zip", "required": true },
+    { "id": "SumatraPDF.SumatraPDF", "required": true },
+    { "id": "Microsoft.Office", "required": false },
+    { "id": "LibreOffice.LibreOffice", "required": false },
+    { "id": "Zoom.Zoom", "required": false },
+    { "id": "Microsoft.PowerToys", "required": false }
+  ]
+}

@@ -1,0 +1,23 @@
+# Developer profile. Verify ids with `winget search`.
+name: developer
+description: Developer workstation (standard + dev tooling)
+
+applications:
+  - id: Google.Chrome
+    required: true
+  - id: 7zip.7zip
+    required: true
+  - id: Git.Git
+    required: true
+  - id: Microsoft.VisualStudioCode
+    required: true
+  - id: Microsoft.PowerShell
+    required: false
+  - id: Microsoft.WindowsTerminal
+    required: false
+  - id: OpenJS.NodeJS.LTS
+    required: false
+  - id: Python.Python.3.12
+    required: false
+  - id: SumatraPDF.SumatraPDF
+    required: false

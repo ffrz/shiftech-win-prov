@@ -1,0 +1,10 @@
+{
+  "name": "standard",
+  "description": "Standard application profile",
+  "applications": [
+    { "id": "Google.Chrome", "required": true },
+    { "id": "7zip.7zip", "required": true },
+    { "id": "VideoLAN.VLC", "required": false },
+    { "id": "SumatraPDF.SumatraPDF", "required": false }
+  ]
+}

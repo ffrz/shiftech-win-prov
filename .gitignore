@@ -1,0 +1,29 @@
+# Build output
+/build/
+/build-*/
+/out/
+/cmake-build-*/
+*.o
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk
+
+# Runtime artifacts (keep the directories, ignore contents)
+/cache/*
+!/cache/.gitkeep
+/logs/*
+!/logs/.gitkeep
+
+# IDE / editor
+/.vs/
+/.vscode/
+*.user
+CMakeSettings.json
+compile_commands.json
+.cache/
+
+# OS
+Thumbs.db
+desktop.ini

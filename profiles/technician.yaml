@@ -1,0 +1,23 @@
+# Technician profile — diagnostic & support tooling. Verify ids with `winget search`.
+name: technician
+description: Technician diagnostic and support toolkit
+
+applications:
+  - id: 7zip.7zip
+    required: true
+  - id: Google.Chrome
+    required: true
+  - id: CPUID.CPU-Z
+    required: false
+  - id: CPUID.HWMonitor
+    required: false
+  - id: CrystalDewWorld.CrystalDiskInfo
+    required: false
+  - id: CrystalDewWorld.CrystalDiskMark
+    required: false
+  - id: TechPowerUp.GPU-Z
+    required: false
+  - id: Microsoft.Sysinternals.Suite
+    required: false
+  - id: WinDirStat.WinDirStat
+    required: false
