@@ -68,8 +68,8 @@ public:
 | Priority | Provider | Network | Status |
 |----------|----------|---------|--------|
 | 1 | `LocalCacheProvider` | none | Milestone 3 |
-| 2 | `WindowsUpdateProvider` | yes | stub in M3, real in M3.5/M4 (COM `IUpdateSearcher`, `IsInstalled=0 and Type='Driver'`) |
-| 3 | `MirrorProvider` | yes | stub in M3, real later (internal HTTP/share + JSON index) |
+| 2 | `WindowsUpdateProvider` | yes | **real (M3.5)** — COM `IUpdateSearcher`, `IsInstalled=0 and Type='Driver'`, matched by `DriverHardwareID` via IDispatch late-binding |
+| 3 | `MirrorProvider` | yes | **real (M3.5)** — fetches `<baseUrl>/index.json`, matches by Hardware/Compatible ID |
 
 `DriverPackProvider` was evaluated for slot 2 and **rejected** — see
 [DECISIONS.md](DECISIONS.md) ADR-0007 (license forbids redistribution; no API). Do not
@@ -95,17 +95,54 @@ redistributed" — bundling its drivers onto technician provisioning media is no
 There is also no official API (only a Cloudflare-gated browse page). `DriverPackProvider`
 will not be built; `WindowsUpdateProvider` takes slot 2.
 
-## WindowsUpdateProvider (chain slot 2)
+## WindowsUpdateProvider (chain slot 2) — implemented
 
-- COM `IUpdateSearcher` (`wuapi.h` / `Msxml2`-style COM, link `wuguid`/late-bound).
-- Criteria: `"IsInstalled=0 and Type='Driver'"`.
-- Online: default `ServerSelection`. Offline / air-gapped: `IUpdateServiceManager::AddScanPackageService`
-  with a `wsusscn2.cab` placed on the USB medium (`cache/wsusscn2.cab`).
-- Each `IUpdate` in the result → a `DriverPackage`: `driverName` = title,
-  `version` from `DriverVerDate`/`DriverVersion`, `downloadUrl` from
-  `IUpdate::DownloadContents`, `checksum` when present, WHQL-signed by definition.
-- Match to the device by the update's `DriverHardwareID` / `DriverClass` vs the device's IDs.
-- Everything wrapped in timeouts; a WUA failure = provider returns `found=false`, chain moves on.
+- COM `IUpdateSession` → `IUpdateSearcher`, criteria `"IsInstalled=0 and Type='Driver'"`,
+  `ServerSelection = ssWindowsUpdate`, `Online = TRUE`.
+- **MinGW note:** its `wuapi.h` only declares the base `IUpdate`/`IUpdateSearcher`/
+  `IUpdateSession`/`ISearchResult` — not `IWindowsDriverUpdate5` / `IUpdateServiceManager`.
+  So the driver-specific properties (`DriverHardwareID`, `DriverProvider`, `DriverVerDate`)
+  and `DownloadContents[0].DownloadUrl` are read via **`IDispatch` late-binding**
+  (`GetIDsOfNames` + `Invoke`), which is header-version independent. The WUA GUIDs are
+  pulled in with `#include <initguid.h>` before `<wuapi.h>` (no `wuguid` import lib exists
+  for MinGW).
+- Each matching `IUpdate` → a `DriverPackage`: `driverName` = Title,
+  `version` = `DriverVerDate` (sortable date string), `provider` = `DriverProvider`,
+  `downloadUrl` = first `DownloadContents` URL, `packageType` = `.cab`→`InfCab` else
+  `InfZip`. WHQL-signed by definition.
+- Match by `DriverHardwareID` (case-insensitive, exact) vs the device's hardware then
+  compatible IDs; `matchedVia` set accordingly.
+- A COM/search failure → `found = false` with a reason; never throws.
+- **Offline (`wsusscn2.cab`) scanning is NOT implemented** — it needs
+  `IUpdateServiceManager`, absent from MinGW's headers. `--wsus-scan` / a
+  `cache/wsusscn2.cab` are accepted by the CLI but currently fall through to an online
+  search. A follow-up can add offline support by hand-declaring that interface if an
+  air-gapped need appears.
+
+## MirrorProvider (chain slot 3) — implemented
+
+- `--mirror-url <baseUrl>` (http(s):// or file://) → fetches `<baseUrl>/index.json` once
+  per process (in-memory cache), with a timeout.
+- **`index.json` schema:**
+  ```json
+  {
+    "PCI\\VEN_10EC&DEV_8168": [
+      { "driverName": "Realtek NIC", "version": "2.0.0.0", "provider": "Realtek",
+        "supportedOs": ["win10","win11"], "arch": "x64",
+        "path": "realtek/rt_nic.zip",
+        "packageType": "InfZip",
+        "checksum": "<sha256 hex>", "checksumAlgo": "sha256" }
+    ]
+  }
+  ```
+  Keys are Hardware or Compatible IDs. `path` is relative to the mirror root (or an
+  absolute URL). `downloadUrl` in the returned package = `<baseUrl>/<path>`; any
+  `checksum` is passed through so `DriverDownloader` verifies it.
+- Network / parse failure → `found = false` with a reason.
+
+Note: `drivers scan` is the quick "what would resolve" view and takes only
+`--provider` / `--driver-index`. Use **`drivers resolve`** for the full option set
+(`--provider-order`, `--mirror-url`, `--wsus-scan`, `--cache-dir`, `--download`).
 
 ## Portable cache & DriverDownloader
 

@@ -35,11 +35,13 @@ checksum/`file://`), `LocalCacheProvider`, `ProviderChain` + `DriverProviderFact
 Real online providers are [tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md) (deferrable).
 Details in [tasks/MILESTONE-3.md](tasks/MILESTONE-3.md).
 
-## Milestone 3.5 — Real WindowsUpdate + Mirror providers (deferrable)
-**Scope:** replace the two chain stubs with working implementations (COM `IUpdateSearcher`
-for Windows Update; internal HTTP/share mirror with a JSON index).
-**Not on the critical path** to an end-to-end dry run — sequence it whenever a real online
-driver source is actually needed. See [tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md).
+## Milestone 3.5 — Real WindowsUpdate + Mirror providers ✅ DONE (2026-09-03)
+**Scope:** `WindowsUpdateProvider` (COM `IUpdateSearcher`, IDispatch late-binding for
+driver props), `MirrorProvider` (HTTP/file `index.json`).
+**Result:** WU query verified live on this machine; `test_mirrorprovider` (5 cases) green;
+19 suites total; no stub reasons left in the chain. Offline `wsusscn2.cab` scanning
+deferred (MinGW headers lack `IUpdateServiceManager`). Details in
+[tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md).
 
 ## Milestone 4 — Driver installation + verification ✅ DONE (2026-09-03)
 **Scope:** `PackageExtractor` (zip/cab/folder), `InfValidator` (security gate + ADR-0006

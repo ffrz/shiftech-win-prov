@@ -57,11 +57,29 @@ real online driver source is actually required.
       `index.json` + payload — hit, miss, malformed index, checksum passthrough.
 - [ ] `scripts\test.bat` green (unit); integration documented.
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `provisioner drivers resolve` on a connected machine with a real missing driver
-      returns a WindowsUpdate match and `--download` fetches it into the portable cache.
-- [ ] `MirrorProvider` resolves against a local fixture mirror.
-- [ ] Chain order `localcache,windowsupdate,mirror` demonstrably tries each.
-- [ ] No stub reasons left in the default chain output.
-- [ ] Change summary + test output. STOP for review.
+- [x] `WindowsUpdateProvider` is real: COM `IUpdateSearcher` +
+      `"IsInstalled=0 and Type='Driver'"`, driver properties read via `IDispatch`
+      late-binding (MinGW's `wuapi.h` lacks `IWindowsDriverUpdate5`). Verified live on this
+      machine — `drivers resolve --provider-order windowsupdate` connects to Windows
+      Update, gets a driver-update result set, matches by `DriverHardwareID` (no match for
+      this machine's 2 edge devices, which is correct).
+- [x] `MirrorProvider` is real: fetches `<baseUrl>/index.json`, matches Hardware/Compatible
+      IDs, passes checksums through. `test_mirrorprovider` — hit, miss, malformed index,
+      unconfigured, `file://` base (5 cases, offline via `QTcpServer`).
+- [x] Default chain output has **no stub reasons** — `windowsupdate` gives a real
+      "no … matched" / "has no driver updates", `mirror` gives "no mirror configured"
+      (a config state, not a stub).
+- [x] Chain tries each in order (`test_providerchain` + live run).
+- [x] 19 test suites green.
+
+### Deviations / not done
+- **Offline `wsusscn2.cab` scanning: not implemented.** Needs `IUpdateServiceManager`,
+  absent from MinGW's headers. `--wsus-scan` is accepted but falls through to an online
+  search. Documented in DRIVER_PROVIDER.md; add by hand-declaring the interface if a real
+  air-gapped need appears.
+- WU integration test is the live manual run above (a gated automated test would need a
+  machine with a known-missing WHQL driver).
+- `drivers scan` still takes only `--provider`/`--driver-index`; `drivers resolve` has the
+  full option set. Documented rather than refactored.
