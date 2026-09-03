@@ -28,7 +28,13 @@ SystemInfo SystemInspector::inspect() {
 
     // 2. Version from Registry
     QSettings reg("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", QSettings::NativeFormat);
-    info.productName = reg.value("ProductName").toString().toStdString();
+    QString productName = reg.value("ProductName").toString();
+    // Windows 11 keeps ProductName = "Windows 10 ..." in the registry. Correct it
+    // from the build number so user-facing output isn't misleading.
+    if (info.buildNumber >= 22000 && productName.contains("Windows 10")) {
+        productName.replace("Windows 10", "Windows 11");
+    }
+    info.productName = productName.toStdString();
     info.editionId = reg.value("EditionID").toString().toStdString();
     
     // DisplayVersion exists on newer Windows 10/11, otherwise fallback to ReleaseId
