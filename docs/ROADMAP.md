@@ -82,6 +82,19 @@ green (19 suites total); ADR-0003 resolved (CLI-only on Win7/8). Manual QA:
 
 **V1 is feature-complete.**
 
+## Milestone 8 — Checklist profiles: local installers + config tweaks ✅ DONE (2026-09-03)
+**Scope:** 3-section profile format (`drivers` / `applications[] enabled` / `config[]`),
+`LocalInstallerProvider` (`apps/<id>/app.json` on the USB drive), config tweak catalog
+(12 tested tweaks), engine Config stage, `provisioner config list`.
+**Result:** `provision --dry-run` runs all three sections; backward-compatible with the
+old profile format; 22 test suites green. Details in
+[tasks/MILESTONE-8.md](tasks/MILESTONE-8.md).
+
+## Milestone 9 — GUI 3-tab checklist picker (not started)
+**Scope:** Drivers / Applications / Config tabs, each item a checkbox, seeded from a
+profile — the DriverPack experience. Backend (M8) is ready. See
+[tasks/MILESTONE-9.md](tasks/MILESTONE-9.md).
+
 ## Out of scope for V1
 Auto-reboot; resume-after-reboot execution (design only); ARM; a service host; any
 server/backend; GUI-click automation.

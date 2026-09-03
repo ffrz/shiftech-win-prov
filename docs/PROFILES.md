@@ -1,73 +1,163 @@
-# Application profiles
+# Provisioning profiles
 
-A profile is a named list of applications a technician can choose for provisioning.
-Shipped in `profiles/`. Chosen with `--profile <name>`.
+A profile is a **checklist** a technician picks before a run. Three sections, each item
+individually toggleable (`enabled`), mirroring the DriverPack-style workflow:
 
-## Format
+- **drivers** — how to resolve drivers (provider chain), plus per-device include/exclude
+- **applications** — winget packages and/or local installers from the USB drive
+- **config** — tested Windows tweaks (clean taskbar, disable password expiry, …)
 
-Canonical reference form is YAML; `ProfileLoader` currently loads the **`.json`**
-equivalent (YAML support pending ADR-0002 in [DECISIONS.md](DECISIONS.md)). Both files are
-shipped side by side and must stay in sync.
+Shipped in `profiles/`, loaded by `ProfileLoader`, chosen with `--profile <name>`
+(CLI) or the profile dropdown (GUI). Format is **JSON only** (ADR-0002).
 
-### YAML (reference)
+---
 
-```yaml
-name: standard
-description: Standard application profile
-
-applications:
-  - id: Google.Chrome
-    required: true
-  - id: 7zip.7zip
-    required: true
-  - id: VideoLAN.VLC
-    required: false
-  - id: SumatraPDF.SumatraPDF
-    required: false
-```
-
-### JSON (loaded)
+## File shape
 
 ```json
 {
   "name": "standard",
-  "description": "Standard application profile",
+  "description": "Standard workstation",
+
+  "drivers": {
+    "enabled": true,
+    "providerOrder": "localcache,windowsupdate,mirror",
+    "installUnsigned": false,
+    "exclude": ["USB\\VID_0BDA&PID_8153"]
+  },
+
   "applications": [
-    { "id": "Google.Chrome", "required": true },
-    { "id": "7zip.7zip", "required": true },
-    { "id": "VideoLAN.VLC", "required": false },
-    { "id": "SumatraPDF.SumatraPDF", "required": false }
+    { "id": "Google.Chrome",   "source": "winget", "wingetId": "Google.Chrome",  "enabled": true,  "required": true },
+    { "id": "7zip",            "source": "winget", "wingetId": "7zip.7zip",       "enabled": true,  "required": true },
+    { "id": "winrar",          "source": "local",  "enabled": true,  "required": false },
+    { "id": "adobe-reader",    "source": "local",  "enabled": true,  "required": false },
+    { "id": "vlc",             "source": "winget", "wingetId": "VideoLAN.VLC",    "enabled": false, "required": false }
+  ],
+
+  "config": [
+    { "id": "disable-password-expiry",  "enabled": true },
+    { "id": "clean-taskbar-pins",       "enabled": true },
+    { "id": "show-file-extensions",     "enabled": true },
+    { "id": "disable-startup-item",     "enabled": false, "args": { "match": "OneDrive" } }
   ]
 }
 ```
 
-## Fields
+### `drivers`
+| Field | Meaning |
+|-------|---------|
+| `enabled` | run the driver stages at all |
+| `providerOrder` | comma-separated chain (default `localcache,windowsupdate,mirror`) |
+| `installUnsigned` | if `true`, install packages with no catalog anyway (default `false` — ADR-0006 warn+skip) |
+| `exclude` | Hardware/Instance IDs to leave alone even if they need a driver |
 
-| Field | Type | Rules |
-|-------|------|-------|
-| `name` | string | required, matches the file stem |
-| `description` | string | required |
-| `applications[].id` | string | required, a valid **winget package Id** (`--exact`), unique within the profile |
-| `applications[].required` | bool | default `false`. `required: true` failures make the run "SUCCESS WITH WARNINGS"; `required: false` failures are informational |
+### `applications[]`
+| Field | Meaning |
+|-------|---------|
+| `id` | unique key within the profile; also the local-app folder name for `source: "local"` |
+| `source` | `"winget"` or `"local"` |
+| `wingetId` | winget package Id (required when `source: "winget"`) |
+| `enabled` | include this app in the run (the checkbox) |
+| `required` | a failure here → "SUCCESS WITH WARNINGS"; optional failures are informational |
 
-Unknown top-level or per-app keys ⇒ validation error (fail fast on a bad profile).
+### `config[]`
+| Field | Meaning |
+|-------|---------|
+| `id` | one of the built-in tweak ids (see the catalog below) |
+| `enabled` | apply this tweak |
+| `args` | tweak-specific parameters (only some tweaks take them) |
+
+Unknown top-level keys, unknown tweak ids, duplicate app ids, or a `local` app with no
+`apps/<id>/app.json` on disk → validation error (fail fast).
+
+---
+
+## Local installers on the USB drive
+
+```
+apps/
+  winrar/
+    app.json
+    winrar-x64-701.exe
+  adobe-reader/
+    app.json
+    AcroRdrDC.exe
+```
+
+`apps/<id>/app.json`:
+
+```json
+{
+  "name": "WinRAR",
+  "installer": "winrar-x64-701.exe",
+  "silentArgs": ["/S"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\WinRAR", "HKLM\\SOFTWARE\\WOW6432Node\\WinRAR"]
+  },
+  "expectedExitCodes": [0, 3010]
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `installer` | file next to `app.json` (relative). **Only `.exe` / `.msi`** — no scripts |
+| `silentArgs` | args for a silent install (`/S`, `/qn`, `/sAll`, …) |
+| `detect.type` | `"registry"` (any listed key exists) or `"file"` (any listed path exists) or `"arp"` (Add/Remove Programs display-name substring in `detect.name`) |
+| `expectedExitCodes` | codes treated as success (default `[0, 1641, 3010]`; `3010`/`1641` ⇒ reboot) |
+
+`LocalInstallerProvider` reads these; MSI is run via `msiexec /i "<file>" /qn`, EXE via the
+installer + `silentArgs`. Never runs anything that isn't the declared installer. Missing
+`app.json` or installer file ⇒ that app is skipped with a clear reason.
+
+---
+
+## Config tweak catalog (built-in, tested)
+
+Each tweak knows how to **apply**, **check if already applied**, and describes what it
+changes (logged). None disable Defender / signature enforcement / do security bypasses.
+
+| id | What it does | Mechanism | `args` |
+|----|--------------|-----------|--------|
+| `disable-password-expiry` | local accounts: password never expires | `net accounts /maxpwage:unlimited` + `wmic UserAccount set PasswordExpires=false` | — |
+| `clean-taskbar-pins` | remove pinned taskbar apps (leaves Start/Search/Task View) | clear `HKCU\...\Taskband` + restart explorer | — |
+| `clean-startup-items` | disable all non-Microsoft startup entries | set `HKCU`/`HKLM` `...\Run` values' `StartupApproved` bytes | — |
+| `disable-startup-item` | disable one startup entry by name | same, filtered | `match` (substring, required) |
+| `show-file-extensions` | Explorer: show known file extensions | `HKCU\...\Advanced` `HideFileExt=0` | — |
+| `show-hidden-files` | Explorer: show hidden files | `HKCU\...\Advanced` `Hidden=1` | — |
+| `disable-fast-startup` | turn off hybrid shutdown | `HKLM\...\Power` `HiberbootEnabled=0` | — |
+| `set-power-high-performance` | active power plan → High performance | `powercfg /setactive SCHEME_MIN` | — |
+| `disable-hibernate` | remove hiberfil.sys | `powercfg /hibernate off` | — |
+| `set-timezone` | set the system time zone | `tzutil /s "<id>"` | `id` (e.g. `"SE Asia Standard Time"`, required) |
+| `enable-rdp` | allow Remote Desktop + firewall rule | `HKLM\...\Terminal Server` `fDenyTSConnections=0` + `netsh advfirewall` | — |
+| `set-computer-name` | rename the computer (reboot required) | `Rename-Computer` | `name` (required) |
+
+Tweaks needing elevation fail clearly when the run isn't elevated (like the driver stages).
+`disable-password-expiry`, `clean-startup-items`, `enable-rdp`, `set-computer-name` need
+elevation; the Explorer/`HKCU` ones don't.
+
+---
 
 ## Shipped profiles
 
-| File | Purpose |
-|------|---------|
-| `profiles/standard.yaml` / `.json` | browser, archiver, media, PDF |
-| `profiles/office.yaml` / `.json` | standard + office suite / PDF / comms |
-| `profiles/technician.yaml` / `.json` | diagnostic & support tooling |
-| `profiles/developer.yaml` / `.json` | standard + editors, git, runtimes |
+| File | Sections |
+|------|----------|
+| `profiles/standard.json` | drivers (WU chain), core apps (Chrome/7zip/WinRAR/Reader), light config |
+| `profiles/office.json` | + office suite, RDP off, timezone set |
+| `profiles/technician.json` | diagnostic tools, high-performance power, RDP on |
+| `profiles/developer.json` | dev tools, show extensions/hidden, fast-startup off |
 
-Profiles are starting points — the exact package Ids should be verified against
-`winget search` on a target machine and adjusted by the team.
+Edit the `enabled` flags to taste, or (once the GUI 3-tab picker lands) tick them per run.
 
-## Behaviour (ApplicationProvider)
+---
 
-1. For each app: `isInstalled(id)` → if yes, record `AlreadyInstalled`, skip.
-2. Else `install(id)` silently; capture output + exit code.
-3. Retry once on a transient failure (network / source).
-4. On failure: record `Failed` (+ `required` flag), continue to the next app.
-5. Report totals: installed / already installed / failed.
+## Behaviour recap
+
+- Driver stage: chain resolve → download → extract → validate → install → verify. `exclude`
+  IDs skipped. `installUnsigned` overrides the warn+skip default.
+- App stage: for each `enabled` app, detect → skip if present, else install
+  (winget silent, or local installer + `silentArgs`), retry once on transient, continue
+  past failures. `required` drives the warnings status.
+- Config stage: for each `enabled` tweak, check → skip if already applied, else apply,
+  record before/after in the log. A tweak failure is a warning, never fatal.
+- Report gains a **Config** section (applied / already / failed / skipped).

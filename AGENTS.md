@@ -116,6 +116,7 @@ green; clean `-Wall -Wextra -Wpedantic -Werror` build (Qt 6.6.2 / MinGW 11.2.0 /
 | 5 | `ProfileLoader` (JSON), `WinGetProvider`, `apps install` |
 | 6 | `ProvisioningEngine` + state machine + `StructuredLogger` + `ReportBuilder`, `provision` / `report` |
 | 7 | `shiftech_gui` (opt-in) — dashboard over the engine event stream |
+| 8 | 3-section checklist profiles (drivers/apps/config), `LocalInstallerProvider` (`apps/<id>/app.json`), config tweak catalog, `config list` |
 
 **Not done / deferred (all documented, none blocking):**
 - **Offline `wsusscn2.cab` scanning** in `WindowsUpdateProvider` — needs
@@ -129,6 +130,7 @@ green; clean `-Wall -Wextra -Wpedantic -Werror` build (Qt 6.6.2 / MinGW 11.2.0 /
 - GUI backlog (not started): separate Pause button, self-elevation UAC prompt, log
   category filter + auto-scroll toggle.
 
-If asked to continue: real **integration testing on a Windows VM** (driver install +
-verify, winget install) is the main remaining validation gap. Then packaging for the
-portable USB workflow.
+If asked to continue: **Milestone 9** (GUI 3-tab checklist picker —
+[docs/tasks/MILESTONE-9.md](docs/tasks/MILESTONE-9.md); backend is ready) or real
+**integration testing on a Windows VM** (driver install + verify, winget/local install,
+config tweaks — the main validation gap).

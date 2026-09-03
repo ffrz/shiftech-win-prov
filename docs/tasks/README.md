@@ -15,6 +15,8 @@ have the step-by-step.
 | [MILESTONE-5.md](MILESTONE-5.md) | Application provisioning (winget + profiles) | M4 reviewed |
 | [MILESTONE-6.md](MILESTONE-6.md) | Provisioning pipeline + logging + report | M5 reviewed |
 | [MILESTONE-7.md](MILESTONE-7.md) | Qt GUI | M6 reviewed |
+| [MILESTONE-8.md](MILESTONE-8.md) | Checklist profiles: local installers + config tweaks | done |
+| [MILESTONE-9.md](MILESTONE-9.md) | GUI 3-tab checklist picker | M8 reviewed |
 
 ## How to run a milestone
 
