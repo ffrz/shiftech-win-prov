@@ -1,0 +1,39 @@
+{
+  "PCI\\VEN_10EC&DEV_8168": [
+    {
+      "driverName": "Realtek PCIe GBE Family Controller",
+      "version": "1.0.0.0",
+      "provider": "Realtek",
+      "supportedOs": ["win10", "win11"],
+      "arch": "x64",
+      "downloadUrl": "file:///tests/fixtures/packages/dummy.inf",
+      "packageType": "InfZip",
+      "checksum": "",
+      "checksumAlgo": ""
+    },
+    {
+      "driverName": "Realtek PCIe GBE Family Controller",
+      "version": "2.0.0.0",
+      "provider": "Realtek",
+      "supportedOs": ["win10", "win11"],
+      "arch": "x64",
+      "downloadUrl": "file:///tests/fixtures/packages/dummy.inf",
+      "packageType": "InfZip",
+      "checksum": "",
+      "checksumAlgo": ""
+    }
+  ],
+  "USB\\COMPAT_VID_1A2C": [
+    {
+      "driverName": "Compatible USB Device",
+      "version": "1.5.0",
+      "provider": "Generic",
+      "supportedOs": ["win10", "win11"],
+      "arch": "x64",
+      "downloadUrl": "file:///tests/fixtures/packages/dummy.inf",
+      "packageType": "InfZip",
+      "checksum": "",
+      "checksumAlgo": ""
+    }
+  ]
+}
