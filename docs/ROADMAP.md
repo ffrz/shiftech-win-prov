@@ -91,10 +91,11 @@ old profile format; 22 test suites green. Details in
 [tasks/MILESTONE-8.md](tasks/MILESTONE-8.md).
 
 ## Milestone 9 — GUI 3-tab checklist picker ✅ DONE (2026-09-04)
-**Scope:** `ChecklistTabs` (Drivers / Applications / Config tabs, checkbox per item,
-seeded from a profile), Start runs an in-memory effective `Profile`, "Save as profile…".
-**Result:** the DriverPack-style picker works; GUI launched + screenshotted; 22 test
-suites green; core additions are thin (`profileObject`, `Profile::toJson`). Details in
+**Scope:** `ChecklistTabs` (Drivers / Applications / Config tabs, tick which items to run),
+Start runs an in-memory effective `Profile`. **Picker, not editor** — read-only tables,
+no profile editing (edit the `.json` for that).
+**Result:** the DriverPack-style picker works; 22 test suites green; one thin core field
+(`ProvisioningOptions::profileObject`). Details in
 [tasks/MILESTONE-9.md](tasks/MILESTONE-9.md).
 
 **All milestones (1–9) complete.**
