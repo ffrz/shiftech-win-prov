@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ApplicationProvider.h"
+#include <QStringList>
 
 namespace shiftech::core::applications {
 
@@ -17,14 +18,14 @@ public:
 private:
     bool m_available = false;
     bool checkAvailability();
-    
+
     struct ProcessResult {
-        int exitCode;
+        int exitCode = -1;
         std::string stdOut;
         std::string stdErr;
-        bool timedOut;
+        bool timedOut = false;
     };
-    
+
     ProcessResult runWinGet(const QStringList& args, int timeoutMs = 600000);
 };
 

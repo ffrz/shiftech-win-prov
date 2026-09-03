@@ -1,5 +1,7 @@
 #include "WinGetProvider.h"
+#include "WinGetOutput.h"
 #include <QProcess>
+#include <QThread>
 #include <QDebug>
 
 namespace shiftech::core::applications {
@@ -52,19 +54,10 @@ bool WinGetProvider::isInstalled(const std::string& id) {
     args << "list" << "--id" << QString::fromStdString(id) << "--exact";
 
     ProcessResult res = runWinGet(args, 30000);
-
-    // winget exits with non-zero or prints "No installed package found matching input criteria."
-    if (res.exitCode != 0) {
+    if (res.timedOut) {
         return false;
     }
-
-    QString outStr = QString::fromStdString(res.stdOut);
-    if (outStr.contains("No installed package found", Qt::CaseInsensitive)) {
-        return false;
-    }
-
-    // If it prints the table, the package is installed
-    return true;
+    return winget::listOutputSaysInstalled(res.exitCode, res.stdOut);
 }
 
 InstallResult WinGetProvider::install(const std::string& id, const InstallOptions&) {
@@ -108,13 +101,13 @@ InstallResult WinGetProvider::install(const std::string& id, const InstallOption
             break;
         }
 
-        // Common transient network/source codes (very broad guess for winget, e.g. 0x801901a0, etc)
-        // If it's the first attempt and failed, we retry. If it's the second attempt, we just stop.
-        if (attempt == 1) {
-            qDebug() << "WinGet install failed for" << id.c_str() << "with code" << res.exitCode << "- retrying...";
-            // QThread::msleep(2000); // Could wait if we included QThread
+        result.ok = false;
+        if (attempt == 1 && winget::isTransientInstallFailure(res.exitCode)) {
+            qDebug() << "WinGet install failed for" << id.c_str()
+                     << "with code" << res.exitCode << "- transient, retrying in 3s...";
+            QThread::msleep(3000);
         } else {
-            result.ok = false;
+            break; // permanent failure or out of retries
         }
     }
 

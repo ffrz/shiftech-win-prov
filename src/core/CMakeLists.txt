@@ -1,4 +1,4 @@
-add_library(shiftech_core STATIC 
+add_library(shiftech_core STATIC
     system/SystemInspector.cpp
     hardware/Device.cpp
     hardware/HardwareId.cpp
@@ -7,6 +7,7 @@ add_library(shiftech_core STATIC
     drivers/DriverMatch.cpp
     drivers/MockDriverProvider.cpp
     profiles/ProfileLoader.cpp
+    applications/WinGetOutput.cpp
     applications/WinGetProvider.cpp
 )
 
