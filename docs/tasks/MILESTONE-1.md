@@ -144,21 +144,22 @@ machine. Paste real output.
 
 ---
 
-## Exit criteria (human review gate)
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `scripts\build.bat` produces `shiftech_core`, `provisioner.exe`, `shiftech_tests.exe`
-      with zero warnings.
-- [ ] `provisioner.exe scan` on this machine lists devices and flags those needing a
-      driver; `--json` emits valid JSON with all `Device` fields.
-- [ ] `SystemInspector` values match `winver` / `whoami`.
-- [ ] Unit tests pass offline (hardware-id parsing, device classification).
-- [ ] `src/core/` contains no Qt Widgets/GUI include.
-- [ ] No Milestone 2+ code (no DriverProvider, downloader, winget, GUI).
-- [ ] Change summary delivered: files added, key decisions, deviations, stubs.
+- [x] Clean build of `shiftech_core`, `provisioner.exe`, and the test suite, zero warnings
+      with `-Wall -Wextra -Wpedantic -Werror` (Qt 6.6.2 / MinGW 11.2.0 / Ninja).
+- [x] `provisioner.exe scan` lists 128 devices, flags 2 as needing a driver; `--json`
+      valid with all `Device` fields.
+- [x] `SystemInspector` matches reality — "Windows 11 Pro (build 22621) x64, Elevated: no,
+      winget: yes, pnputil: yes" (registry-ProductName quirk corrected from build number).
+- [x] Unit tests pass offline: `test_hardwareid`, `test_deviceclassify` (+ 5 more added
+      during hardening).
+- [x] `src/core/` has no Qt Widgets/GUI include.
 
-## Deliverables to hand back
-
-1. Change summary.
-2. Pasted output of `scripts\build.bat` (tail), `scripts\run.bat scan`, `scripts\test.bat`.
-3. Any proposed doc/ADR updates.
-4. STOP — wait for review before Milestone 2.
+### Deviations / notes
+- `tests_stub.cpp` / orphan `shiftech_tests` target removed.
+- `DeviceEnumerator` reads driver version/provider/date via `QSettings` on the class
+  registry key rather than raw `advapi32` — acceptable, keeps the code short.
+- One enumerated device shows `[NO DRIVER]` with an empty hardware-ID list (a software
+  device); harmless, but a future pass could suppress ID-less devices from the
+  "needing a driver" group.

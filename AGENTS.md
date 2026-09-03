@@ -93,7 +93,7 @@ See [docs/BUILD.md](docs/BUILD.md) for the exact configure/build commands and th
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | touch any module boundary, the pipeline, or the event/state model |
 | [docs/BUILD.md](docs/BUILD.md) | configure/build; toolchain paths & the Win7 Qt 6 caveat |
 | [docs/WINDOWS_APIS.md](docs/WINDOWS_APIS.md) | write `hardware/`, `drivers/`, or `system/` code |
-| [docs/DRIVER_PROVIDER.md](docs/DRIVER_PROVIDER.md) | write anything in `drivers/` — has the DriverPack investigation gate |
+| [docs/DRIVER_PROVIDER.md](docs/DRIVER_PROVIDER.md) | write anything in `drivers/` — portable-cache design, provider chain, DriverPack gate (ADR-0007) |
 | [docs/CLI.md](docs/CLI.md) | add or change a `provisioner.exe` command |
 | [docs/PROFILES.md](docs/PROFILES.md) | touch profile loading or ship a profile |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | start any milestone (exit criteria live here) |
@@ -101,14 +101,16 @@ See [docs/BUILD.md](docs/BUILD.md) for the exact configure/build commands and th
 | [docs/TESTING.md](docs/TESTING.md) | write tests; safety rules for `pnputil`/`winget` |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | make a design choice or add a dependency (file an ADR) |
 
-## 8. First task (Milestone 1)
+## 8. Current state & next task
 
-In order:
-1. Inspect the repo and docs.
-2. Confirm/adjust the architecture proposal in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-3. Create the project skeleton: root `CMakeLists.txt`, `src/core` library target,
-   `src/cli` executable target, `tests` target — all building empty/stub.
-4. Implement `DeviceEnumerator` + `Device` model (SetupAPI/CfgMgr32).
-5. Implement `provisioner.exe scan` — list all devices, clearly flag those needing a driver.
-6. Build, run `scan` on this machine, run unit tests.
-7. Report changes + results. Stop. Wait for review before Milestone 2.
+**Done and reviewed:** Milestone 1 (skeleton, `SystemInspector`, `DeviceEnumerator`,
+`provisioner scan`) and Milestone 2 (`DriverProvider`, `MockDriverProvider`,
+`provisioner drivers scan`). Clean `-Werror` build, 7 offline test suites green.
+
+**Present but not formally reviewed:** Milestone 5 groundwork — `ProfileLoader` (JSON),
+`WinGetProvider`, `provisioner apps install --profile <name> [--dry-run]`.
+
+**Next: Milestone 3** — portable driver cache + `DriverDownloader` + `LocalCacheProvider`
++ provider chain. Owner decisions are in [docs/DECISIONS.md](docs/DECISIONS.md) ADR-0004 /
+0006 / 0007. Work [docs/tasks/MILESTONE-3.md](docs/tasks/MILESTONE-3.md) top to bottom,
+report at each task, STOP at the exit criteria for review. Do not start Milestone 4.

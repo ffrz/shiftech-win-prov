@@ -84,7 +84,8 @@ int DriversScanCommand::run(bool jsonOutput, const QString& providerName, const 
         }
         provider = std::make_unique<MockDriverProvider>(idx.toStdString());
     } else if (providerName == "driverpack") {
-        out << "Error: driverpack provider is not implemented (ADR-0004).\n";
+        out << "Error: driverpack provider is not implemented "
+               "(pending DriverPack investigation, ADR-0007).\n";
         return 2;
     } else {
         out << "Error: Unknown provider '" << providerName << "'.\n";

@@ -62,12 +62,22 @@ Prereq: Milestone 1 accepted. Read [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md
 
 ---
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `provisioner.exe drivers scan` prints a per-device resolution result on this machine
-      (most will be NOT FOUND against the tiny fixture index — that's expected).
-- [ ] `--json` valid.
-- [ ] Matching + version-compare + mock-provider unit tests pass offline.
-- [ ] No real DriverPack code anywhere; `driverpack` provider path throws a clear
-      "not implemented (ADR-0004)".
-- [ ] Change summary + pasted `drivers scan` / test output. STOP for review.
+- [x] `provisioner.exe drivers scan` prints a per-device resolution result on this machine
+      (both devices NOT FOUND against the fixture index — expected).
+- [x] `--json` valid — includes `target`, per-device `candidates` with `matchedVia`.
+- [x] Matching + version-compare + mock-provider unit tests pass offline
+      (`test_drivermatch`, `test_mockprovider`, `test_targetsystem`).
+- [x] No real DriverPack code; `--provider driverpack` returns a clear
+      "not implemented (ADR-0007)" error (exit 2).
+
+### Deviations from the original plan
+- `rankCandidate` originally could not distinguish HWID vs CompatID matches. Fixed:
+  `DriverPackage` now has `matchedVia` / `matchedId`, set by the provider; `pickBest`
+  ranks HardwareId > CompatibleId, version as tie-break. Covered by
+  `test_drivermatch::testHardwareIdBeatsCompatibleId`.
+- ADR reference renumbered: the DriverPack gate is now **ADR-0007** (sub-task of the
+  broader ADR-0004 provider-chain decision).
+- `MockDriverProvider` stays a test/dev provider only; it is **not** in the default
+  resolution chain (see ADR-0004).
