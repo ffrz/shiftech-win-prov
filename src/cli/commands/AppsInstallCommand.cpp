@@ -1,146 +1,170 @@
 #include "AppsInstallCommand.h"
-#include <iostream>
+
+#include "../../core/applications/WinGetProvider.h"
+#include "../../core/profiles/ProfileLoader.h"
+
 #include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QStringList>
-#include <QFileInfo>
 #include <QDir>
-#include "../../core/profiles/ProfileLoader.h"
-#include "../../core/applications/WinGetProvider.h"
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QStringList>
+#include <QTextStream>
 
 using namespace shiftech::core::profiles;
 using namespace shiftech::core::applications;
 
 namespace shiftech::cli::commands {
 
-int AppsInstallCommand::execute(const std::vector<std::string>& args) {
-    QCommandLineParser parser;
-    parser.setApplicationDescription("Install applications from a profile");
-    
-    QCommandLineOption profileOpt(QStringList() << "p" << "profile", "Profile name or file stem (e.g. 'standard')", "profile");
-    parser.addOption(profileOpt);
+namespace {
 
-    QCommandLineOption dryRunOpt(QStringList() << "d" << "dry-run", "Print the plan without installing");
-    parser.addOption(dryRunOpt);
-
-    QCommandLineOption profilesDirOpt(QStringList() << "profiles-dir", "Directory containing profiles", "dir");
-    parser.addOption(profilesDirOpt);
-
-    QStringList qtArgs;
-    qtArgs << "provisioner";
-    for (const auto& a : args) {
-        qtArgs << QString::fromStdString(a);
+QString findProfile(const QString& nameOrPath, const QString& explicitDir) {
+    if (QFileInfo(nameOrPath).isAbsolute() && nameOrPath.endsWith(".json")) {
+        return QFileInfo::exists(nameOrPath) ? nameOrPath : QString();
     }
+    const QString exeDir = QCoreApplication::applicationDirPath();
+    QStringList dirs;
+    if (!explicitDir.isEmpty()) {
+        dirs << explicitDir;
+    } else {
+        dirs << exeDir + "/profiles" << exeDir + "/../profiles" << exeDir + "/../../profiles";
+    }
+    for (const QString& d : dirs) {
+        const QString c = QDir(d).filePath(nameOrPath + ".json");
+        if (QFileInfo::exists(c)) return c;
+    }
+    return {};
+}
 
+} // namespace
+
+int AppsInstallCommand::execute(const std::vector<std::string>& args) {
+    QTextStream out(stdout);
+    QTextStream errs(stderr);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    out.setEncoding(QStringConverter::Utf8);
+#endif
+
+    QCommandLineParser parser;
+    QCommandLineOption profileOpt({"p", "profile"}, "Profile name or .json path", "profile");
+    QCommandLineOption dryRunOpt({"d", "dry-run"}, "Print the plan without installing");
+    QCommandLineOption profilesDirOpt("profiles-dir", "Directory containing profiles", "dir");
+    QCommandLineOption jsonOpt("json", "Machine-readable output");
+    parser.addOptions({profileOpt, dryRunOpt, profilesDirOpt, jsonOpt});
+
+    QStringList qtArgs{"provisioner"};
+    for (const auto& a : args) qtArgs << QString::fromStdString(a);
     if (!parser.parse(qtArgs)) {
-        std::cerr << "Error: " << parser.errorText().toStdString() << "\n";
+        errs << "Error: " << parser.errorText() << "\n";
+        return 3;
+    }
+    if (!parser.isSet(profileOpt)) {
+        errs << "Error: --profile is required.\n";
         return 3;
     }
 
-    if (!parser.isSet(profileOpt)) {
-        std::cerr << "Error: --profile is required.\n";
+    const bool dryRun = parser.isSet(dryRunOpt);
+    const bool json = parser.isSet(jsonOpt);
+
+    const QString path = findProfile(parser.value(profileOpt), parser.value(profilesDirOpt));
+    if (path.isEmpty()) {
+        errs << "Error: profile '" << parser.value(profileOpt)
+             << "' not found. Pass --profiles-dir <dir> or an absolute .json path.\n";
         return 2;
     }
 
-    QString profileName = parser.value(profileOpt);
-    QString profilePath;
-
-    // Absolute path to a .json profile passed directly.
-    if (QFileInfo(profileName).isAbsolute() && profileName.endsWith(".json")) {
-        profilePath = profileName;
-    } else {
-        const QString explicitDir = parser.value(profilesDirOpt);
-        const QString exeDir = QCoreApplication::applicationDirPath();
-        QStringList dirs;
-        if (!explicitDir.isEmpty()) {
-            dirs << explicitDir;
-        } else {
-            dirs << exeDir + "/profiles"
-                 << exeDir + "/../profiles"
-                 << exeDir + "/../../profiles";
-        }
-        for (const QString& d : dirs) {
-            const QString candidate = QDir(d).filePath(profileName + ".json");
-            if (QFileInfo::exists(candidate)) { profilePath = candidate; break; }
-        }
-        if (profilePath.isEmpty()) {
-            std::cerr << "Error: profile '" << profileName.toStdString()
-                      << "' not found. Pass --profiles-dir <dir> or an absolute .json path.\n";
-            return 2;
-        }
-    }
-
-    auto loadRes = ProfileLoader::load(profilePath.toStdString());
-    if (std::holds_alternative<ProfileLoadError>(loadRes)) {
-        std::cerr << "Error loading profile: " << std::get<ProfileLoadError>(loadRes).message << "\n";
+    auto loaded = ProfileLoader::load(path.toStdString());
+    if (std::holds_alternative<ProfileLoadError>(loaded)) {
+        errs << "Error: invalid profile: "
+             << QString::fromStdString(std::get<ProfileLoadError>(loaded).message) << "\n";
         return 2;
     }
-
-    Profile profile = std::get<Profile>(loadRes);
-    bool dryRun = parser.isSet(dryRunOpt);
-
-    std::cout << "Shiftech Win Provisioner - apps install\n\n";
-    std::cout << "Profile: " << profile.name << " (" << profile.description << ")\n";
-    std::cout << "Applications to provision: " << profile.applications.size() << "\n";
-    if (dryRun) {
-        std::cout << "Mode: DRY-RUN\n";
-    }
-    std::cout << "----------------------------------------\n";
+    const Profile profile = std::get<Profile>(loaded);
 
     WinGetProvider winget;
-    if (!dryRun && !winget.isAvailable()) {
-        std::cerr << "Error: WinGet is not available on this system.\n";
-        return 2;
-    }
+    const bool wingetOk = winget.isAvailable();
 
-    int failCount = 0;
-    int installedCount = 0;
-    int skippedCount = 0;
+    int installed = 0, already = 0, failed = 0, failedRequired = 0, skipped = 0;
+    QJsonArray items;
+
+    if (!json) {
+        out << "Shiftech Win Provisioner - apps install" << (dryRun ? "  (DRY RUN)" : "")
+            << "\n\n";
+        out << "Profile: " << QString::fromStdString(profile.name) << " — "
+            << QString::fromStdString(profile.description) << "\n";
+        out << "Applications: " << profile.applications.size() << "\n";
+        if (!wingetOk)
+            out << "winget: NOT AVAILABLE — every app will be skipped\n";
+        out << "----------------------------------------\n";
+    }
 
     for (const auto& app : profile.applications) {
-        std::cout << "App: " << app.id << " (Required: " << (app.required ? "YES" : "NO") << ")\n";
-        
-        if (winget.isInstalled(app.id)) {
-            std::cout << "  Status: ALREADY INSTALLED\n";
-            skippedCount++;
-            continue;
-        }
+        QJsonObject item;
+        item["id"] = QString::fromStdString(app.id);
+        item["required"] = app.required;
 
-        if (dryRun) {
-            std::cout << "  Status: WILL INSTALL\n";
-            continue;
-        }
-
-        std::cout << "  Status: INSTALLING...\n";
-        InstallOptions opts;
-        InstallResult res = winget.install(app.id, opts);
-        if (res.ok) {
-            std::cout << "  Result: SUCCESS\n";
-            installedCount++;
+        QString status;
+        if (!wingetOk) {
+            status = "skipped_no_winget";
+            ++skipped;
+        } else if (winget.isInstalled(app.id)) {
+            status = "already_installed";
+            ++already;
+        } else if (dryRun) {
+            status = "would_install";
         } else {
-            std::cerr << "  Result: FAILED\n";
-            std::cerr << "  Log: " << res.log << "\n";
-            if (app.required) {
-                std::cerr << "  WARNING: Required application failed to install.\n";
+            const InstallResult r = winget.install(app.id, {});
+            if (r.ok) {
+                status = "installed";
+                ++installed;
+            } else {
+                status = "failed";
+                ++failed;
+                if (app.required) ++failedRequired;
+                item["exitCode"] = r.exitCode;
             }
-            failCount++;
+        }
+        item["status"] = status;
+        items.append(item);
+
+        if (!json) {
+            out << "  " << QString::fromStdString(app.id).leftJustified(34)
+                << status << (app.required && status == "failed" ? "  (REQUIRED)" : "")
+                << "\n";
         }
     }
 
-    std::cout << "----------------------------------------\n";
-    if (dryRun) {
-        std::cout << "Dry-run complete.\n";
-        return 0;
+    if (json) {
+        QJsonObject root;
+        root["profile"] = QString::fromStdString(profile.name);
+        root["dryRun"] = dryRun;
+        root["wingetAvailable"] = wingetOk;
+        root["items"] = items;
+        QJsonObject sum;
+        sum["installed"] = installed;
+        sum["alreadyInstalled"] = already;
+        sum["failed"] = failed;
+        sum["failedRequired"] = failedRequired;
+        sum["skipped"] = skipped;
+        root["summary"] = sum;
+        out << QJsonDocument(root).toJson(QJsonDocument::Indented);
+    } else {
+        out << "----------------------------------------\n";
+        if (dryRun) {
+            out << "Dry run complete.\n";
+        } else {
+            out << "Installed: " << installed << "   Already: " << already
+                << "   Failed: " << failed << "   Skipped: " << skipped << "\n";
+        }
     }
+    out.flush();
 
-    std::cout << "Summary:\n";
-    std::cout << "  Installed: " << installedCount << "\n";
-    std::cout << "  Already Installed (Skipped): " << skippedCount << "\n";
-    std::cout << "  Failed: " << failCount << "\n";
-
-    if (failCount > 0) {
-        return 1;
-    }
+    // Exit: 2 already handled (profile). 1 = warnings (a required app failed, or
+    // everything was skipped because winget is missing). 0 = clean.
+    if (failedRequired > 0) return 1;
+    if (!wingetOk && !profile.applications.empty()) return 1;
     return 0;
 }
 
