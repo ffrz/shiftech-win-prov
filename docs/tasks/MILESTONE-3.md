@@ -93,13 +93,31 @@ See [../DECISIONS.md](../DECISIONS.md) ADR-0007. Nothing further to do here; do 
 
 ---
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] ADR-0007 written, evidence-backed, owner-signed-off.
-- [ ] `DriverDownloader` + `DriverCache` unit tests pass against a local fixture server.
-- [ ] Cache is portable: move `cache/drivers/` to a different path, `LocalCacheProvider`
-      still resolves from it (test proves this).
-- [ ] `drivers resolve --download` populates the cache; a second run reports `cache hit`.
-- [ ] Provider chain falls through correctly; one provider error never aborts the run.
-- [ ] `WindowsUpdateProvider` / `MirrorProvider` compile as honest stubs.
-- [ ] Change summary + ADR-0007 + test output. STOP for review.
+- [x] ADR-0007 written and accepted: **DriverPack dropped** (license forbids
+      redistribution, no API). Chain = LocalCache → WindowsUpdate → Mirror.
+- [x] `DriverDownloader` + `DriverCache` unit tests pass against a local `QTcpServer`
+      fixture — success, 404/no-listener, mid-stream drop + retry, `Range` resume,
+      checksum mismatch/match, cache-hit skips network, `file://` source.
+- [x] Cache is portable: `test_localcacheprovider::survivesCacheDirMove` renames the whole
+      cache tree and still resolves.
+- [x] `drivers resolve --download` populates the portable cache (verified on this machine
+      via a mock index → `portable_cache/<id>/nic.zip` + `metadata.json` + `index.json`);
+      a follow-up `--provider-order localcache` run resolves offline with no mock.
+- [x] Provider chain falls through and aggregates reasons; a throwing provider is caught
+      (`test_providerchain`).
+- [x] `WindowsUpdateProvider` / `MirrorProvider` compile as honest stubs (clear
+      "not implemented yet" reason).
+- [x] `driverpack` token rejected by the factory with an ADR-0007 message.
+
+### Deviations / notes
+- `packageId` includes the source `downloadUrl` per the design, so the same driver from
+  two different source URLs caches twice. Accepted for V1.
+- `metadata.json` keeps the original `downloadUrl` as **provenance**; `LocalCacheProvider`
+  never uses it to locate the payload (always `<packageId>/<payloadFileName>`), so a stale
+  absolute path there does not break relocation. Documented in DRIVER_PROVIDER.md.
+- Real `WindowsUpdateProvider` (COM `IUpdateSearcher`) and `MirrorProvider` are a
+  **Milestone 3.5** follow-up — see [MILESTONE-3.5.md](MILESTONE-3.5.md).
+- `MockDriverProvider` now reports JSON parse errors instead of silently returning
+  "not found".

@@ -26,13 +26,20 @@ Details in [tasks/MILESTONE-2.md](tasks/MILESTONE-2.md).
 Milestone 5 groundwork, working and tested but not yet formally reviewed against
 [tasks/MILESTONE-5.md](tasks/MILESTONE-5.md).*
 
-## Milestone 3 — Portable driver cache + downloader + provider chain
-**Scope:** complete the checklist in [DRIVER_PROVIDER.md](DRIVER_PROVIDER.md), file ADR-0004.
-`DriverDownloader` (progress, retry, timeout, checksum, resume, deterministic cache).
-Real provider **only if** the investigation yields a reliable + permitted mechanism;
-otherwise `WindowsUpdateProvider` / `MirrorProvider` proposal + mock stays.
-**Exit criteria:** downloader unit tests (against local fixture server) pass; cache
-dedupe verified; ADR-0004 written and reviewed.
+## Milestone 3 — Portable driver cache + downloader + provider chain ✅ DONE (2026-09-03)
+**Scope:** `DriverCache` (deterministic portable id), `DriverDownloader` (retry/resume/
+checksum/`file://`), `LocalCacheProvider`, `ProviderChain` + `DriverProviderFactory`,
+`WindowsUpdate`/`Mirror` stubs, `provisioner drivers resolve [--download]`.
+**Result:** 11 test suites green; portable cache verified end-to-end on this machine
+(download → relocate → resolve offline). DriverPack rejected (ADR-0007).
+Real online providers are [tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md) (deferrable).
+Details in [tasks/MILESTONE-3.md](tasks/MILESTONE-3.md).
+
+## Milestone 3.5 — Real WindowsUpdate + Mirror providers (deferrable)
+**Scope:** replace the two chain stubs with working implementations (COM `IUpdateSearcher`
+for Windows Update; internal HTTP/share mirror with a JSON index).
+**Not on the critical path** to an end-to-end dry run — sequence it whenever a real online
+driver source is actually needed. See [tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md).
 
 ## Milestone 4 — Driver installation + verification
 **Scope:** `DriverInstaller` (`pnputil /add-driver /install` per INF, capture

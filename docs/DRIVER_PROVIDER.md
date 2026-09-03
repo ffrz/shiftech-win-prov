@@ -119,8 +119,12 @@ will not be built; `WindowsUpdateProvider` takes slot 2.
   ```
   `metadata.json` must contain **no absolute paths**.
 - `LocalCacheProvider` reads `index.json` (rebuildable by scanning the dir) and returns
-  cached packages whose IDs match the device, with `downloadUrl` = a `file://` path inside
-  the cache and `matchedVia` set.
+  cached packages whose IDs match the device, **rewriting `downloadUrl` to a `file://`
+  path inside the cache** and setting `matchedVia`. The `downloadUrl` stored in
+  `metadata.json` is provenance only (where the package was originally fetched from) — it
+  is never used to locate the payload, so a stale absolute path there does not break
+  relocation. The payload is always found via `<packageId>/<payloadFileName>` relative to
+  the cache root.
 - `DriverDownloader`: before downloading, if the package dir exists and (checksum matches
   OR no checksum and size > 0) → reuse (`fromCache = true`). Otherwise download to
   `package.<ext>.part`, verify, atomic-rename, then update `index.json`.

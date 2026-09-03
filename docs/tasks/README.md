@@ -9,7 +9,8 @@ have the step-by-step.
 |------|-----------|-----------------------------|
 | [MILESTONE-1.md](MILESTONE-1.md) | Skeleton + hardware detection | starting the project (see `GEMINI_INITIAL_PROMPT.md` at repo root) |
 | [MILESTONE-2.md](MILESTONE-2.md) | DriverProvider abstraction + mock | M1 reviewed and accepted |
-| [MILESTONE-3.md](MILESTONE-3.md) | DriverPack investigation + downloader + cache | M2 reviewed |
+| [MILESTONE-3.md](MILESTONE-3.md) | Portable cache + downloader + provider chain | M2 reviewed |
+| [MILESTONE-3.5.md](MILESTONE-3.5.md) | Real WindowsUpdate + Mirror providers (can defer) | any time after M3 |
 | [MILESTONE-4.md](MILESTONE-4.md) | Driver install + verification | M3 reviewed |
 | [MILESTONE-5.md](MILESTONE-5.md) | Application provisioning (winget + profiles) | M4 reviewed |
 | [MILESTONE-6.md](MILESTONE-6.md) | Provisioning pipeline + logging + report | M5 reviewed |
