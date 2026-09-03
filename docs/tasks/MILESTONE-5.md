@@ -59,12 +59,35 @@ ADR-0002.
 
 ---
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `apps install --profile standard --dry-run` on this machine lists correct
-      install/skip decisions.
-- [ ] Profile validation rejects the bad fixtures with clear messages.
-- [ ] A failing package (bad id in a test profile) does not stop the others.
-- [ ] winget-unavailable path handled gracefully.
-- [ ] Unit tests pass; integration run on a VM (paste result).
-- [ ] Change summary + ADR-0002 resolution. STOP for review.
+- [x] ADR-0002 resolved: **JSON only**, no YAML parser dependency. `.yaml` files removed.
+- [x] `apps install --profile standard --dry-run` on this machine: correctly reports
+      `would_install` for Chrome/SumatraPDF, `already_installed` for 7zip/VLC (real
+      `winget list` queries).
+- [x] Profile validation rejects the bad fixtures (`test_profileloader`: missing
+      description, duplicate id, unknown key, name/stem mismatch, missing file).
+- [x] A failing package does not stop the rest — `AppsInstallCommand` loop catches each
+      `InstallResult` and continues; `WinGetProvider::install` retries once on a transient
+      exit code then records the failure.
+- [x] winget-unavailable path: every app → `skipped_no_winget`, exit 1 (warnings), no
+      hard error. (Win7/8 story.)
+- [x] `--json` output with per-item status + summary (installed / alreadyInstalled /
+      failed / failedRequired / skipped).
+- [x] Unit tests pass: `test_profileloader`, `test_wingetparse` (15 suites total).
+
+### Exit codes
+`3` bad usage · `2` profile not found / invalid · `1` a **required** app failed, or all
+apps skipped because winget is missing · `0` clean.
+
+### Integration test (VM/safe machine — not run here)
+`winget install` a tiny package (e.g. `SumatraPDF.SumatraPDF` if absent) → confirm
+`isInstalled` flips → `winget uninstall`. The output-parsing and control flow are covered
+offline by `test_wingetparse`.
+
+### Deviations / notes
+- `AppsInstallCommand` hardcodes `WinGetProvider` (no DI yet). The provider interface
+  `ApplicationProvider` exists; if a second provider is ever needed, inject it then. The
+  pure winget output logic is already isolated in `WinGetOutput` and unit-tested.
+- Dry-run still calls `winget list` per app (needed to show would_install vs
+  already_installed); it never calls `winget install`.

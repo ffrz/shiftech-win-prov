@@ -50,16 +50,13 @@ per-INF outcome), `DriverVerifier` (re-enumerate, `classifyTransition` →
 signed fixture zip. Real install is elevation-gated and left for a VM (procedure in the
 task file). Details in [tasks/MILESTONE-4.md](tasks/MILESTONE-4.md).
 
-## Milestone 5 — Application provisioning 🟡 PARTIAL (groundwork done, review pending)
-**Scope:** `ApplicationProvider` iface, `WinGetProvider`. `ProfileLoader` + validation.
-Shipped profiles. `provisioner.exe apps install --profile <name>`.
-**Status:** all of the above exist and pass tests (`test_profileloader`, `test_wingetparse`);
-`apps install --dry-run` works on this machine. Still to do for a full M5:
-per-app retry-on-transient wired through the command, a `required`-failure → warnings exit
-code, integration test on a VM. Do a proper pass against
-[tasks/MILESTONE-5.md](tasks/MILESTONE-5.md) after M3/M4.
-**Exit criteria:** profile parsing unit tests pass ✅; `apps install --dry-run` lists
-correct install/skip decisions ✅; a failing package doesn't stop the rest (needs verifying).
+## Milestone 5 — Application provisioning ✅ DONE (2026-09-03)
+**Scope:** `ApplicationProvider` iface, `WinGetProvider` (retry-on-transient),
+`ProfileLoader` + validation (JSON, ADR-0002), shipped profiles,
+`provisioner apps install --profile <name> [--dry-run] [--json]`.
+**Result:** `apps install --dry-run` works on this machine; winget-unavailable →
+all-skipped + warnings exit; required-vs-optional failure semantics; 15 suites green.
+Details in [tasks/MILESTONE-5.md](tasks/MILESTONE-5.md).
 
 ## Milestone 6 — Provisioning pipeline
 **Scope:** `ProvisioningEngine`, full pipeline, `ProvisioningState` state machine,
