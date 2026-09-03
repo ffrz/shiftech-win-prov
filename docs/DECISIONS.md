@@ -33,15 +33,70 @@ or Qt-free) as the Win7/8 story and Qt 6 GUI for Win10/11 only.
 buildable with the smallest possible Qt surface so option (c) stays viable.
 **Consequences:** Avoid Qt-only constructs in core where a std equivalent exists.
 
-## ADR-0004 — DriverPack integration mechanism
-**Status:** not started — **blocks `DriverPackProvider` (Milestone 3)**
-**Context:** Must not assume DriverPack's site/API. See the checklist in
-[DRIVER_PROVIDER.md](DRIVER_PROVIDER.md).
-**Decision:** _to be written after the investigation._ Must cover: API vs scrape, direct
-download by Hardware ID, licensing/ToS for automated download + redistribution, integrity
-(checksums/signatures), stability, and alternatives (Windows Update driver catalog,
-Microsoft Update Catalog, vendor catalogs, internal mirror).
-**Consequences:** until accepted, only `MockDriverProvider` exists.
+## ADR-0004 — Driver resolution: portable local cache first, then a chain of providers
+**Status:** accepted (owner decision 2026-09-03); DriverPack sub-investigation still **open**
+**Context:** The tool and its driver cache must be **fully portable** — copied onto a USB
+flash drive and run from there for fast, autonomous provisioning of machines that may have
+no/limited internet. Resolution should try the fastest source first.
+
+**Decision:**
+1. **`DriverProvider` is a chain.** `ProvisioningEngine` queries providers in priority
+   order and stops at the first usable `DriverPackage` (subject to the security gate below).
+   Default order:
+   1. **`LocalCacheProvider`** — the portable `cache/drivers/` tree on the same medium as
+      the exe. Zero network. Always tried first.
+   2. **`DriverPackProvider`** — *only if* the DriverPack sub-investigation (below) yields a
+      reliable + license-permitted direct-download-by-Hardware-ID mechanism. Preferred over
+      Windows Update when it is fast and has the driver.
+   3. **`WindowsUpdateProvider`** — COM `IUpdateSearcher` with the driver category.
+      Microsoft-hosted, signed, licensed, stable. Needs internet.
+   4. **`MirrorProvider`** — an internal HTTP/file share with a JSON index keyed by
+      Hardware ID. Last resort; fully under our control.
+   Order is configurable (`--provider-order`, or a config file on the USB medium).
+2. **The cache is the portable artifact.** Everything any provider downloads is written into
+   `cache/drivers/<packageId>/` (deterministic id, see [DRIVER_PROVIDER.md](DRIVER_PROVIDER.md)).
+   A technician can pre-populate the flash drive by running resolution once on a
+   connected machine; subsequent runs are offline. `packageId` must be path-independent
+   (no absolute paths inside `metadata.json`) so the tree survives being moved between
+   drive letters / machines.
+3. **Paths are all relative to the executable**, never to `C:\` or a user profile, so the
+   whole folder is relocatable.
+4. **Unverifiable package ⇒ warn + skip** (ADR-0006).
+
+**DriverPack sub-investigation (still required before writing `DriverPackProvider`):**
+the checklist in [DRIVER_PROVIDER.md](DRIVER_PROVIDER.md) — official API vs scrape, direct
+download by Hardware ID, **ToS for automated download + redistribution onto technician
+media**, checksums/signatures, stability. If it fails any of these, `DriverPackProvider`
+is dropped from the chain and #3/#4 carry the load; record the finding as ADR-0007.
+
+**Consequences:**
+- `LocalCacheProvider` + `DriverDownloader` + the portable cache can be built and tested
+  now (Milestone 3) regardless of the DriverPack question.
+- `MockDriverProvider` stays as the test/dev provider and is not in the default chain.
+- The engine must treat "provider chain" as first-class: try, fall through on
+  not-found/error, never abort the run.
+
+## ADR-0006 — Unverifiable driver package ⇒ warn + skip
+**Status:** accepted (owner decision 2026-09-03)
+**Context:** Drivers are security-sensitive. Some packages arrive with no checksum and no
+signature catalog (`CatalogFile`).
+**Decision:** If a package cannot be verified (no checksum to match **and** no signed
+catalog), the pipeline logs a prominent **warning**, marks the device `Skipped`, and
+continues. It does **not** install unverified packages, and it does **not** prompt
+interactively in V1. `pnputil` still enforces Windows driver signing for anything that
+does get installed. A future `--force-unverified` flag may override this for lab use.
+**Consequences:** some devices will be left without a driver on offline/unsigned sources;
+that is the accepted trade-off. The report must list skipped-unverified devices distinctly.
+
+## ADR-0007 — DriverPack sub-investigation outcome
+**Status:** not started — sub-task of ADR-0004
+**Context:** ADR-0004 puts `DriverPackProvider` at priority #2 *conditionally*. This ADR
+records whether that condition is met.
+**Decision:** _to be written_ after completing the checklist in
+[DRIVER_PROVIDER.md](DRIVER_PROVIDER.md). Either "DriverPack is in the chain, mechanism =
+…", or "DriverPack dropped, reason = …".
+**Consequences:** until written, the default provider chain is Local → WindowsUpdate →
+Mirror (DriverPack omitted).
 
 ## ADR-0005 — Archive extraction
 **Status:** proposed

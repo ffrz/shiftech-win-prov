@@ -1,84 +1,110 @@
-# Milestone 3 — DriverPack investigation + Downloader + Cache
+# Milestone 3 — Portable driver cache + Downloader + Provider chain
 
-**Goal:** (a) complete the DriverPack investigation and record the decision; (b) a robust
-`DriverDownloader` with a deterministic cache. A real network provider is implemented
-**only if** the investigation yields a reliable + permitted mechanism.
+**Goal:** a robust, **portable** `DriverDownloader` + `cache/drivers/` tree, a
+`LocalCacheProvider` that reads it offline, and the provider-chain plumbing in the engine.
+Plus the DriverPack sub-investigation (ADR-0007).
 
-Prereq: Milestone 2 accepted. Read [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md) fully.
+The owner decision is recorded in **[../DECISIONS.md](../DECISIONS.md) ADR-0004 / ADR-0006** —
+read it before starting. Key points:
+- Tool + cache run **from a USB flash drive**. All paths relative to the executable.
+- Resolution is a **chain**: LocalCache → (DriverPack?) → WindowsUpdate → Mirror. First
+  usable package wins.
+- Unverifiable package ⇒ **warn + skip** (ADR-0006).
+
+Prereq: Milestones 1–2 accepted. Read [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md) fully.
 
 ---
 
-## Task 1 — DriverPack / driver-source investigation (NO provider code yet)
+## Task 1 — Portable cache + `DriverDownloader`
 
-Work the checklist in [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md) "Investigation
-checklist". For each item, capture concrete evidence (a real request/response, a quoted
-ToS clause, a screenshot/console log). Specifically decide:
-
-- [ ] Official API? (base URL, auth, schema) — yes/no + evidence.
-- [ ] Direct stable download by Hardware ID possible? — captured example or "no".
-- [ ] Licensing/ToS permit automated download + redistribution to technician machines? —
-      quoted clause. **If unclear or prohibited: stop, escalate, do not scrape.**
-- [ ] Integrity mechanism (checksums/signatures)? — yes/no.
-- [ ] Alternatives compared: Windows Update driver catalog (`IUpdateSearcher` with the
-      driver category / `IWindowsUpdateAgentInfo`), Microsoft Update Catalog, per-vendor
-      catalogs, an internal driver mirror/share. Pros/cons table.
-
-**Deliverable:** write **ADR-0004** in [../DECISIONS.md](../DECISIONS.md) with the decision:
-one of
-  1. implement `DriverPackProvider` against the documented reliable+permitted mechanism,
-  2. implement `WindowsUpdateProvider` (COM `IUpdateSearcher`, driver category) as the real
-     path,
-  3. implement `MirrorProvider` (internal HTTP/file share, curated index) as the real path,
-  4. ship with `MockDriverProvider` only + documented integration point.
-
-Get human sign-off on ADR-0004 before Task 3.
-
-## Task 2 — DriverDownloader + cache (independent of Task 1's outcome)
-
+- [ ] `src/core/drivers/DriverCache.h/.cpp`:
+      - `std::string packageId(const DriverPackage&)` =
+        `sha256(provider|driverName|version|archStr|downloadUrl)` truncated to 16 hex chars
+        (`QCryptographicHash`). **Deterministic and path-independent.**
+      - `std::filesystem::path cacheRoot()` = `<exeDir>/cache/drivers` (override via ctor
+        arg / `--cache-dir`). Never an absolute `C:\` or profile path.
+      - `bool has(const DriverPackage&)`, `path dir(const DriverPackage&)`,
+        `writeMetadata(...)`, `readMetadata(...)`.
+      - `metadata.json` contains the `DriverPackage` fields + checksum + fetch timestamp
+        and **no absolute paths** (so the tree survives being moved between drives).
 - [ ] `src/core/drivers/DriverDownloader.h/.cpp` using `QNetworkAccessManager`:
-      - `struct DownloadRequest { DriverPackage package; }` /
-        `struct DownloadResult { bool ok; std::string localPath; std::string error;
-        bool fromCache; }`.
-      - progress callback (`std::function<void(qint64 received, qint64 total)>`),
-      - retry: 3 attempts, backoff 1s/4s/9s, per-attempt timeout (default 120s, configurable),
-      - resume via HTTP `Range` when server sends `Accept-Ranges: bytes`,
-      - download to `<file>.part`, verify, atomic rename.
-- [ ] Cache: `packageId = sha256(provider|driverName|version|arch|downloadUrl)[:16]`
-      (`QCryptographicHash`). Layout
-      `cache/drivers/<packageId>/package.<ext>` + `metadata.json` (the `DriverPackage` +
-      checksum + fetch timestamp). Reuse when metadata present and (checksum matches, or no
-      checksum and size > 0).
+      - `struct DownloadResult { bool ok; std::string localPath; std::string error; bool fromCache; }`
+      - progress callback `std::function<void(qint64 received, qint64 total)>`
+      - retry 3×, backoff 1s/4s/9s, per-attempt timeout (default 120s, configurable)
+      - resume via HTTP `Range` when server sends `Accept-Ranges: bytes`
+      - download to `package.<ext>.part`, verify, atomic rename into the cache dir
+      - `file://` URLs supported (fixtures act as a local "server")
+      - if `has(package)` and (checksum matches, or no checksum and size > 0) → return
+        `fromCache = true`, no network.
 - [ ] Checksum verification when `package.checksum` is set (algo from `checksumAlgo`).
-- [ ] `file://` URLs supported (so the Milestone 2 fixtures work as a local "server").
 
-## Task 3 — Real provider (only per ADR-0004 decision)
+## Task 2 — `LocalCacheProvider`
 
-- [ ] Implement whichever provider ADR-0004 selected. If option 4 (mock only): skip; just
-      make sure the integration point (factory slot, config) is clean and documented.
-- [ ] `--provider <name>` selects it; document required config/network in
-      [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md).
+- [ ] `src/core/drivers/LocalCacheProvider.h/.cpp` implementing `DriverProvider`:
+      - reads an **index** of what's in the portable cache. Recommended: a
+        `cache/drivers/index.json` mapping Hardware/Compatible ID → `[packageId]`, written
+        by `DriverDownloader` whenever it stores a package, plus a scan-and-rebuild path.
+      - `search()` returns `DriverPackage`s for cached packages that match the device's
+        IDs, `matchedVia` set correctly (HardwareId vs CompatibleId), `downloadUrl` pointing
+        at the local `file://` path in the cache.
+      - Zero network. Never throws.
+- [ ] `name()` = `"localcache"`.
 
-## Task 4 — CLI
+## Task 3 — Provider chain in the resolution path
 
-- [ ] Extend `drivers scan` (or add `drivers resolve`) to also **download** matched packages
-      into the cache when `--download` is passed; print cache hits vs fetches; never abort
-      the batch on one failure.
+- [ ] `src/core/drivers/ProviderChain.h/.cpp`: holds an ordered `vector<unique_ptr<DriverProvider>>`;
+      `DriverSearchResult resolve(const Device&, const TargetSystem&)` tries each provider,
+      returns the first with `found == true`, aggregates `notFoundReason`s otherwise.
+- [ ] `DriverProviderFactory`: build the chain from a spec —
+      default `"localcache,windowsupdate,mirror"` (DriverPack added only per ADR-0007).
+      `--provider-order <csv>` overrides. `mock` selectable explicitly for testing.
+- [ ] `WindowsUpdateProvider` / `MirrorProvider`: **stubs** in this milestone — real impl is
+      Milestone 3.5 / 4 follow-up. They must compile, return `found=false` with a clear
+      "not implemented yet" reason, and be wired into the factory so the chain is exercised.
+- [ ] `drivers scan` uses the chain (not a single provider) unless `--provider` forces one.
 
-## Task 5 — Tests
+## Task 4 — DriverPack sub-investigation → ADR-0007
 
-- [ ] `tests/unit/test_cacheid.cpp`: `packageId` deterministic; changes with version/url.
-- [ ] `tests/unit/test_downloader.cpp`: against a **local QTcpServer/QHttpServer fixture**
-      (no external hosts) — success, 404, mid-stream disconnect + retry, resume, checksum
-      mismatch → failure, cache hit skips network.
-- [ ] `scripts\test.bat` green. No test hits the internet.
+Work the checklist in [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md). Capture evidence
+(real request/response, quoted ToS clause). Decide **one**:
+- DriverPack is in the chain — document the exact reliable download-by-Hardware-ID
+  mechanism, its position vs WindowsUpdate, checksum story; **or**
+- DriverPack is dropped — record why (no API / ToS forbids redistribution to media /
+  scraping too fragile). Chain stays LocalCache → WindowsUpdate → Mirror.
+
+Write **ADR-0007** in [../DECISIONS.md](../DECISIONS.md). Get owner sign-off before
+implementing any `DriverPackProvider`.
+
+## Task 5 — CLI
+
+- [ ] `provisioner.exe drivers resolve [--download] [--cache-dir <path>] [--provider-order <csv>]`:
+      for every device needing a driver, run the chain; with `--download`, fetch the winning
+      package into the portable cache and update `index.json`. Print `cache hit` vs
+      `downloaded` vs `NOT FOUND` per device. One failure never aborts the batch.
+- [ ] `drivers scan` keeps working (resolution only, no download).
+
+## Task 6 — Tests (all offline)
+
+- [ ] `tests/unit/test_cacheid.cpp`: `packageId` deterministic for same inputs; changes when
+      version/url/arch changes; contains no path separators.
+- [ ] `tests/unit/test_downloader.cpp`: against a **local `QHttpServer`/`QTcpServer` fixture**
+      — success, 404, mid-stream disconnect + retry, `Range` resume, checksum mismatch →
+      failure, cache hit skips network, `file://` source.
+- [ ] `tests/unit/test_localcacheprovider.cpp`: given a fixture cache tree + `index.json`,
+      resolves a known ID, misses an unknown ID, `matchedVia` correct.
+- [ ] `tests/unit/test_providerchain.cpp`: chain falls through provider 1 (not found) to
+      provider 2 (found); returns first hit; all-miss aggregates reasons.
+- [ ] `scripts\test.bat` green. **No test hits the internet.**
 
 ---
 
 ## Exit criteria
 
-- [ ] ADR-0004 written, evidence-backed, human-signed-off.
-- [ ] `DriverDownloader` unit tests pass against a local fixture server (offline).
-- [ ] Cache dedupe demonstrated (second resolve of the same package = "from cache").
-- [ ] If a real provider was built: one real end-to-end resolve+download works (on a
-      network-connected run) and is shown; failures are per-package, non-fatal.
-- [ ] Change summary + ADR + test output. STOP for review.
+- [ ] ADR-0007 written, evidence-backed, owner-signed-off.
+- [ ] `DriverDownloader` + `DriverCache` unit tests pass against a local fixture server.
+- [ ] Cache is portable: move `cache/drivers/` to a different path, `LocalCacheProvider`
+      still resolves from it (test proves this).
+- [ ] `drivers resolve --download` populates the cache; a second run reports `cache hit`.
+- [ ] Provider chain falls through correctly; one provider error never aborts the run.
+- [ ] `WindowsUpdateProvider` / `MirrorProvider` compile as honest stubs.
+- [ ] Change summary + ADR-0007 + test output. STOP for review.
