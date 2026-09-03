@@ -57,6 +57,18 @@ prints the report. Exit 0/1/2 = SUCCESS / SUCCESS WITH WARNINGS / FAILED.
 ### `provisioner report [--last | --run <id>] [--json] [--log-dir <p>]`
 Replay a past run's report from its `run.json`.
 
+### `provisioner reset [--last | --run <id>] [--dry-run] [--json] [--skip-apps] [--skip-drivers] [--skip-config] [--purge-cache] [--log-dir <p>] [--cache-dir <p>]`
+**Undo** a provisioning run for testbed re-use, reading `run.json`:
+- apps the run *installed* → `winget uninstall` (local installers → reported
+  `not-supported`, uninstall via Add/Remove Programs)
+- drivers it published → `pnputil /delete-driver <oemNN.inf> /uninstall`
+- config tweaks it *applied* → each tweak's `revert()` (some are `not-supported`:
+  cleaned taskbar pins, timezone, computer name)
+
+Things the run only *detected* as already present are left alone. `--dry-run` prints the
+plan and changes nothing. `--purge-cache` also empties `cache/drivers/`. Needs elevation
+for driver + machine-wide config reverts. Exit 0, or 1 on any failure.
+
 ## Output contract
 
 - Human: one line per event `[HH:MM:SS] LEVEL  message`, `(NN%)` for stage progress, then

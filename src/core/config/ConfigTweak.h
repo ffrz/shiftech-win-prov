@@ -8,8 +8,10 @@ namespace shiftech::core::config {
 
 enum class TweakState { NotApplied, Applied, Unknown };
 enum class TweakOutcome { Applied, AlreadyApplied, Failed, Skipped, RequiresReboot };
+enum class RevertOutcome { Reverted, NothingToRevert, Failed, Skipped, NotSupported };
 
 const char* toString(TweakOutcome o);
+const char* toString(RevertOutcome o);
 
 struct TweakArgs {
     std::map<std::string, std::string> values;
@@ -34,6 +36,12 @@ struct TweakResult {
     std::string detail;
 };
 
+struct RevertResult {
+    std::string id;
+    RevertOutcome outcome = RevertOutcome::Failed;
+    std::string detail;
+};
+
 // A single Windows tweak: describe / check / apply. Implementations live in
 // ConfigTweaks.cpp and do the actual registry / process work.
 class ConfigTweak {
@@ -42,6 +50,9 @@ public:
     virtual TweakInfo info() const = 0;
     virtual TweakState check() const = 0;                 // is it already applied?
     virtual TweakResult apply(const TweakArgs& args) = 0; // do it (or report AlreadyApplied)
+    // Best-effort undo to Windows defaults. Not every tweak can be perfectly reverted
+    // (e.g. cleaned taskbar pins can't be restored) - those return NotSupported.
+    virtual RevertResult revert(const TweakArgs& args) = 0;
 };
 
 // The built-in catalog.
@@ -51,5 +62,8 @@ bool isKnownTweak(const std::string& id);
 // Run one tweak by id. Handles: unknown id, missing required args, not-elevated,
 // already-applied. Never throws.
 TweakResult runTweak(const std::string& id, const TweakArgs& args, bool elevated);
+
+// Revert one tweak by id (best effort). Same guards as runTweak. Never throws.
+RevertResult revertTweak(const std::string& id, const TweakArgs& args, bool elevated);
 
 } // namespace shiftech::core::config

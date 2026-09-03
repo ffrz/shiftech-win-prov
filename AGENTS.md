@@ -117,7 +117,8 @@ green; clean `-Wall -Wextra -Wpedantic -Werror` build (Qt 6.6.2 / MinGW 11.2.0 /
 | 6 | `ProvisioningEngine` + state machine + `StructuredLogger` + `ReportBuilder`, `provision` / `report` |
 | 7 | `shiftech_gui` (opt-in) — dashboard over the engine event stream |
 | 8 | 3-section checklist profiles (drivers/apps/config), `LocalInstallerProvider` (`apps/<id>/app.json`), config tweak catalog, `config list` |
-| 9 | GUI 3-tab checklist picker (`ChecklistTabs`) — tick items per run, "Save as profile" |
+| 9 | GUI 3-tab checklist picker (`ChecklistTabs`) — tick which items to run per PC |
+| 10 | `provisioner reset` — undo a run (uninstall apps, delete drivers, revert tweaks) from its `run.json` |
 
 **Not done / deferred (all documented, none blocking):**
 - **Offline `wsusscn2.cab` scanning** in `WindowsUpdateProvider` — needs

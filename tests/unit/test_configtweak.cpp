@@ -44,12 +44,33 @@ private slots:
         QVERIFY(QString::fromStdString(r.detail).contains("Administrator"));
     }
 
-    void nonElevatedTweakAllowedUnelevated() {
-        // show-file-extensions does NOT need admin; running it here would touch HKCU.
-        // Just assert it isn't skipped for elevation reasons (it may report Applied or
-        // AlreadyApplied depending on the test machine).
-        auto r = runTweak("show-file-extensions", {}, false);
-        QVERIFY(r.outcome != TweakOutcome::Skipped);
+    // NOTE: we deliberately do NOT call runTweak()/revertTweak() for real on a tweak
+    // that mutates this machine (registry, power plan, accounts). Those paths are
+    // exercised on a VM per docs/tasks/MILESTONE-10.md. Here we only test the guards.
+
+    void revertUnknownFails() {
+        auto r = revertTweak("nope", {}, true);
+        QCOMPARE(r.outcome, RevertOutcome::Failed);
+    }
+
+    void revertElevationGate() {
+        auto r = revertTweak("disable-password-expiry", {}, /*elevated*/ false);
+        QCOMPARE(r.outcome, RevertOutcome::Skipped);
+    }
+
+    void revertNotSupportedForIrreversibleTweaks() {
+        auto r = revertTweak("clean-taskbar-pins", {}, false);
+        QCOMPARE(r.outcome, RevertOutcome::NotSupported);
+    }
+
+    void adminTweaksAreSkippedNotRunWhenUnelevated() {
+        // For every catalog tweak that needs admin, an unelevated revert must be a no-op
+        // Skip (it must NOT touch the machine).
+        for (const auto& t : catalog()) {
+            if (!t.needsElevation) continue;
+            auto r = revertTweak(t.id, {}, /*elevated*/ false);
+            QVERIFY2(r.outcome == RevertOutcome::Skipped, t.id.c_str());
+        }
     }
 };
 

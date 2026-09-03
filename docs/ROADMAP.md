@@ -98,7 +98,16 @@ no profile editing (edit the `.json` for that).
 (`ProvisioningOptions::profileObject`). Details in
 [tasks/MILESTONE-9.md](tasks/MILESTONE-9.md).
 
-**All milestones (1–9) complete.**
+## Milestone 10 — `provisioner reset` ✅ DONE (2026-09-04)
+**Scope:** undo a provisioning run for testbed re-use — `winget uninstall` apps the run
+installed, `pnputil /delete-driver` drivers it published, revert config tweaks it applied.
+Reads `run.json`; enriched with `publishedInfs` + app `source`/`wingetId`.
+`ConfigTweak::revert()` added for every tweak (some `NotSupported`).
+**Result:** `reset --dry-run` verified on this machine; 24 test suites green (no machine
+mutation in tests); real reset is VM-only. Details in
+[tasks/MILESTONE-10.md](tasks/MILESTONE-10.md).
+
+**All milestones (1–10) complete.**
 
 ## Out of scope for V1
 Auto-reboot; resume-after-reboot execution (design only); ARM; a service host; any

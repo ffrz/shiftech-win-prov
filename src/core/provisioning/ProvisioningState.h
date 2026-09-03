@@ -34,6 +34,8 @@ struct DriverItemResult {
     std::string deviceName;
     std::string status;      // DriverInstallStatus string
     std::string detail;
+    // oemNN.inf published names pnputil added for this device (for `reset`).
+    std::vector<std::string> publishedInfs;
 };
 
 struct AppItemResult {
@@ -41,6 +43,8 @@ struct AppItemResult {
     bool required = false;
     std::string status;      // installed | already_installed | failed | skipped_no_winget | would_install
     int exitCode = 0;
+    std::string source;      // "winget" | "local"  (for `reset`)
+    std::string wingetId;    // when source == winget  (for `reset`)
 };
 
 struct ConfigItemResult {

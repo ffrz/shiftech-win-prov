@@ -17,6 +17,7 @@ have the step-by-step.
 | [MILESTONE-7.md](MILESTONE-7.md) | Qt GUI | M6 reviewed |
 | [MILESTONE-8.md](MILESTONE-8.md) | Checklist profiles: local installers + config tweaks | done |
 | [MILESTONE-9.md](MILESTONE-9.md) | GUI 3-tab checklist picker | M8 reviewed |
+| [MILESTONE-10.md](MILESTONE-10.md) | `provisioner reset` — undo a run for testbed re-use | done |
 
 ## How to run a milestone
 

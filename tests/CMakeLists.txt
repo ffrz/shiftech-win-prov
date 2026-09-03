@@ -30,6 +30,7 @@ add_shiftech_test(test_structuredlogger unit/test_structuredlogger.cpp)
 add_shiftech_test(test_mirrorprovider unit/test_mirrorprovider.cpp)
 add_shiftech_test(test_configtweak unit/test_configtweak.cpp)
 add_shiftech_test(test_localinstaller unit/test_localinstaller.cpp)
+add_shiftech_test(test_resetengine unit/test_resetengine.cpp)
 
 if(SHIFTECH_BUILD_GUI)
     qt_add_executable(test_mainwindow_smoke gui/test_mainwindow_smoke.cpp)

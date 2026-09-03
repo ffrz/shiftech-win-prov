@@ -28,6 +28,7 @@ add_library(shiftech_core STATIC
     provisioning/ProvisioningState.cpp
     provisioning/ReportBuilder.cpp
     provisioning/ProvisioningEngine.cpp
+    provisioning/ResetEngine.cpp
 )
 
 target_include_directories(shiftech_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -22,6 +22,7 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include <algorithm>
+#include <map>
 
 using namespace shiftech::core;
 using shiftech::core::logging::StructuredLogger;
@@ -180,7 +181,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     for (const auto& d : allDevices) {
         if (!d.needsDriver()) continue;
         if (isExcluded(d)) {
-            st.drivers.push_back({d.instanceId, d.name, "Skipped", "excluded by profile"});
+            st.drivers.push_back({d.instanceId, d.name, "Skipped", "excluded by profile", {}});
             continue;
         }
         needing.push_back(d);
@@ -194,6 +195,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     // ---- Driver stages ----
     std::vector<std::string> notFoundIds, skippedIds;
     std::vector<std::string> infsToInstall;
+    std::map<std::string, std::string> infOwner;   // inf path -> device instanceId
     drivers::InstallReport installReport;
 
     if (doDrivers && !needing.empty()) {
@@ -223,7 +225,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             auto best = drivers::pickBest(d, sr, target);
             if (!best) {
                 notFoundIds.push_back(d.instanceId);
-                st.drivers.push_back({d.instanceId, d.name, "NotFound", sr.notFoundReason});
+                st.drivers.push_back({d.instanceId, d.name, "NotFound", sr.notFoundReason, {}});
                 ev("driver", Severity::Warning, d.name + ": no driver found", prog);
             } else {
                 planned.push_back({d, *best});
@@ -244,7 +246,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             if (!dr.ok) {
                 skippedIds.push_back(p.dev.instanceId);
                 st.drivers.push_back({p.dev.instanceId, p.dev.name, "Skipped",
-                                      "download: " + dr.error});
+                                      "download: " + dr.error, {}});
                 ev("driver", Severity::Warning, p.dev.name + ": download failed: " + dr.error,
                    prog);
                 continue;
@@ -256,7 +258,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             if (!ex.ok) {
                 skippedIds.push_back(p.dev.instanceId);
                 st.drivers.push_back({p.dev.instanceId, p.dev.name, "Skipped",
-                                      "extract: " + ex.error});
+                                      "extract: " + ex.error, {}});
                 ev("driver", Severity::Warning, p.dev.name + ": extract failed", prog);
                 continue;
             }
@@ -275,12 +277,13 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
                        p.dev.name + ": installing UNSIGNED INF (installUnsigned=true)");
                 }
                 infsToInstall.push_back(inf);
+                infOwner[inf] = p.dev.instanceId;
                 ++accepted;
             }
             if (accepted == 0) {
                 skippedIds.push_back(p.dev.instanceId);
                 st.drivers.push_back({p.dev.instanceId, p.dev.name, "Skipped",
-                                      "no acceptable INF"});
+                                      "no acceptable INF", {}});
             } else {
                 downloaded.push_back(p);
             }
@@ -299,6 +302,16 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
            std::string(opts.dryRun ? "dry-run: " : "") + "pnputil processed " +
                std::to_string(installReport.perInf.size()) + " INF(s)");
 
+        // Map the published oemNN.inf names back to their device (for `reset`).
+        std::map<std::string, std::vector<std::string>> publishedByDevice;
+        for (const auto& o : installReport.perInf) {
+            if (o.ok && !o.publishedName.empty()) {
+                auto it = infOwner.find(o.infPath);
+                if (it != infOwner.end())
+                    publishedByDevice[it->second].push_back(o.publishedName);
+            }
+        }
+
         tick(Stage::DriverVerify);
         if (!opts.dryRun) {
             auto vr = drivers::verifyAfterInstall(needing, installReport.rebootRequired,
@@ -309,8 +322,11 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
                 for (auto& existing : st.drivers)
                     if (existing.instanceId == r.instanceId) { exists = true; break; }
                 if (!exists) {
-                    st.drivers.push_back({r.instanceId, r.deviceName,
-                                          drivers::toString(r.status), r.detail});
+                    DriverItemResult di{r.instanceId, r.deviceName,
+                                        drivers::toString(r.status), r.detail, {}};
+                    auto pit = publishedByDevice.find(r.instanceId);
+                    if (pit != publishedByDevice.end()) di.publishedInfs = pit->second;
+                    st.drivers.push_back(di);
                 }
                 if (r.status == drivers::DriverInstallStatus::RequiresReboot)
                     st.rebootRequired = true;
@@ -318,7 +334,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         } else {
             for (const auto& p : downloaded) {
                 st.drivers.push_back({p.dev.instanceId, p.dev.name, "Installed",
-                                      "dry-run: would install"});
+                                      "dry-run: would install", {}});
             }
         }
     } else if (doDrivers) {
@@ -360,6 +376,8 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             AppItemResult ar;
             ar.id = app.id;
             ar.required = app.required;
+            ar.source = isLocal ? "local" : "winget";
+            ar.wingetId = isLocal ? "" : app.wingetId;
 
             if (!isLocal && !wingetOk) {
                 ar.status = "skipped_no_winget";

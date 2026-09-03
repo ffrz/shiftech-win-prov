@@ -72,6 +72,9 @@ QJsonObject ProvisioningState::toJson() const {
         e["deviceName"] = QString::fromStdString(d.deviceName);
         e["status"] = QString::fromStdString(d.status);
         e["detail"] = QString::fromStdString(d.detail);
+        QJsonArray infs;
+        for (const auto& p : d.publishedInfs) infs.append(QString::fromStdString(p));
+        e["publishedInfs"] = infs;
         drv.append(e);
     }
     o["drivers"] = drv;
@@ -83,6 +86,8 @@ QJsonObject ProvisioningState::toJson() const {
         e["required"] = a.required;
         e["status"] = QString::fromStdString(a.status);
         e["exitCode"] = a.exitCode;
+        e["source"] = QString::fromStdString(a.source);
+        e["wingetId"] = QString::fromStdString(a.wingetId);
         ap.append(e);
     }
     o["apps"] = ap;
@@ -127,10 +132,14 @@ ProvisioningState ProvisioningState::fromJson(const QJsonObject& o) {
 
     for (const auto& v : o["drivers"].toArray()) {
         const QJsonObject e = v.toObject();
-        s.drivers.push_back({e["instanceId"].toString().toStdString(),
-                             e["deviceName"].toString().toStdString(),
-                             e["status"].toString().toStdString(),
-                             e["detail"].toString().toStdString()});
+        DriverItemResult d;
+        d.instanceId = e["instanceId"].toString().toStdString();
+        d.deviceName = e["deviceName"].toString().toStdString();
+        d.status = e["status"].toString().toStdString();
+        d.detail = e["detail"].toString().toStdString();
+        for (const auto& p : e["publishedInfs"].toArray())
+            d.publishedInfs.push_back(p.toString().toStdString());
+        s.drivers.push_back(d);
     }
     for (const auto& v : o["apps"].toArray()) {
         const QJsonObject e = v.toObject();
@@ -139,6 +148,8 @@ ProvisioningState ProvisioningState::fromJson(const QJsonObject& o) {
         a.required = e["required"].toBool();
         a.status = e["status"].toString().toStdString();
         a.exitCode = e["exitCode"].toInt();
+        a.source = e["source"].toString().toStdString();
+        a.wingetId = e["wingetId"].toString().toStdString();
         s.apps.push_back(a);
     }
     for (const auto& v : o["configTweaks"].toArray()) {

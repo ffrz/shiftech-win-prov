@@ -5,6 +5,7 @@
 #include <QString>
 #include <QStringList>
 
+#include <climits>
 #include <functional>
 #include <memory>
 
@@ -17,6 +18,17 @@ const char* toString(TweakOutcome o) {
         case TweakOutcome::Failed: return "Failed";
         case TweakOutcome::Skipped: return "Skipped";
         case TweakOutcome::RequiresReboot: return "RequiresReboot";
+    }
+    return "Failed";
+}
+
+const char* toString(RevertOutcome o) {
+    switch (o) {
+        case RevertOutcome::Reverted: return "Reverted";
+        case RevertOutcome::NothingToRevert: return "NothingToRevert";
+        case RevertOutcome::Failed: return "Failed";
+        case RevertOutcome::Skipped: return "Skipped";
+        case RevertOutcome::NotSupported: return "NotSupported";
     }
     return "Failed";
 }
@@ -56,13 +68,20 @@ QSettings hklm(const QString& sub) {
 const QString kExplorerAdv =
     "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced";
 
-// --- generic HKCU DWORD tweak ---------------------------------------------------
+void restartExplorer() {
+    run("taskkill", {"/f", "/im", "explorer.exe"}, 8000);
+    run("cmd", {"/c", "start", "", "explorer.exe"}, 8000);
+}
+
+// --- generic HKCU/HKLM DWORD tweak --------------------------------------------
+// wanted = value we set. defaultVal = the Windows default to restore on revert
+// (INT_MIN => revert by deleting the value).
 class DwordTweak : public ConfigTweak {
 public:
     DwordTweak(TweakInfo i, std::function<QSettings()> reg, QString value, int wanted,
-              QString restartExplorer = {})
+              int defaultVal, bool restartExplorerOnChange = false)
         : m_info(std::move(i)), m_reg(std::move(reg)), m_value(std::move(value)),
-          m_wanted(wanted), m_restart(std::move(restartExplorer)) {}
+          m_wanted(wanted), m_default(defaultVal), m_restart(restartExplorerOnChange) {}
 
     TweakInfo info() const override { return m_info; }
 
@@ -86,12 +105,31 @@ public:
             r.detail = "registry write failed";
             return r;
         }
-        if (!m_restart.isEmpty()) {
-            run("taskkill", {"/f", "/im", "explorer.exe"}, 8000);
-            run("cmd", {"/c", "start", "", "explorer.exe"}, 8000);
-        }
+        if (m_restart) restartExplorer();
         r.outcome = TweakOutcome::Applied;
         r.detail = m_value.toStdString() + " = " + std::to_string(m_wanted);
+        return r;
+    }
+
+    RevertResult revert(const TweakArgs&) override {
+        RevertResult r{m_info.id, RevertOutcome::Failed, {}};
+        QSettings s = m_reg();
+        if (!s.contains(m_value) || s.value(m_value).toInt() != m_wanted) {
+            r.outcome = RevertOutcome::NothingToRevert;
+            return r;
+        }
+        if (m_default == INT_MIN) s.remove(m_value);
+        else s.setValue(m_value, m_default);
+        s.sync();
+        if (s.status() != QSettings::NoError) {
+            r.detail = "registry write failed";
+            return r;
+        }
+        if (m_restart) restartExplorer();
+        r.outcome = RevertOutcome::Reverted;
+        r.detail = m_default == INT_MIN
+                       ? (m_value.toStdString() + " removed")
+                       : (m_value.toStdString() + " = " + std::to_string(m_default));
         return r;
     }
 
@@ -100,24 +138,33 @@ private:
     std::function<QSettings()> m_reg;
     QString m_value;
     int m_wanted;
-    QString m_restart;
+    int m_default;
+    bool m_restart;
 };
 
 // --- command-based tweak (net/powercfg/tzutil/...) -----------------------------
 class CmdTweak : public ConfigTweak {
 public:
-    CmdTweak(TweakInfo i,
-            std::function<TweakState()> checkFn,
-            std::function<TweakResult(const TweakArgs&)> applyFn)
-        : m_info(std::move(i)), m_check(std::move(checkFn)), m_apply(std::move(applyFn)) {}
+    using CheckFn = std::function<TweakState()>;
+    using ApplyFn = std::function<TweakResult(const TweakArgs&)>;
+    using RevertFn = std::function<RevertResult(const TweakArgs&)>;
+
+    CmdTweak(TweakInfo i, CheckFn checkFn, ApplyFn applyFn, RevertFn revertFn = {})
+        : m_info(std::move(i)), m_check(std::move(checkFn)), m_apply(std::move(applyFn)),
+          m_revert(std::move(revertFn)) {}
     TweakInfo info() const override { return m_info; }
     TweakState check() const override { return m_check ? m_check() : TweakState::Unknown; }
     TweakResult apply(const TweakArgs& a) override { return m_apply(a); }
+    RevertResult revert(const TweakArgs& a) override {
+        if (m_revert) return m_revert(a);
+        return {m_info.id, RevertOutcome::NotSupported, "no automatic undo for this tweak"};
+    }
 
 private:
     TweakInfo m_info;
-    std::function<TweakState()> m_check;
-    std::function<TweakResult(const TweakArgs&)> m_apply;
+    CheckFn m_check;
+    ApplyFn m_apply;
+    RevertFn m_revert;
 };
 
 // --------------------------------------------------------------------------------
@@ -134,15 +181,18 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
         return i;
     };
 
+    // INT_MIN as the default => revert by deleting the value.
+
+
     if (id == "show-file-extensions")
         return std::make_unique<DwordTweak>(
             info("Show file extensions", "Explorer Advanced: HideFileExt = 0", false),
-            [] { return hkcu(kExplorerAdv); }, "HideFileExt", 0, "explorer");
+            [] { return hkcu(kExplorerAdv); }, "HideFileExt", 0, /*default*/ 1, /*restart*/ true);
 
     if (id == "show-hidden-files")
         return std::make_unique<DwordTweak>(
             info("Show hidden files", "Explorer Advanced: Hidden = 1", false),
-            [] { return hkcu(kExplorerAdv); }, "Hidden", 1, "explorer");
+            [] { return hkcu(kExplorerAdv); }, "Hidden", 1, /*default*/ 2, /*restart*/ true);
 
     if (id == "clean-taskbar-pins")
         return std::make_unique<CmdTweak>(
@@ -157,11 +207,16 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 s.remove("Favorites");
                 s.remove("FavoritesResolve");
                 s.sync();
-                run("taskkill", {"/f", "/im", "explorer.exe"}, 8000);
-                run("cmd", {"/c", "start", "", "explorer.exe"}, 8000);
+                restartExplorer();
                 r.outcome = TweakOutcome::Applied;
                 r.detail = "cleared Taskband\\Favorites";
                 return r;
+            },
+            [](const TweakArgs&) -> RevertResult {
+                // Removed pins can't be reconstructed - Windows will re-create defaults
+                // on next sign-in.
+                return {"clean-taskbar-pins", RevertOutcome::NotSupported,
+                        "removed pins can't be restored; Windows re-adds defaults on sign-in"};
             });
 
     if (id == "disable-password-expiry")
@@ -182,6 +237,15 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 r.outcome = a.code == 0 ? TweakOutcome::Applied : TweakOutcome::Failed;
                 r.detail = a.out.trimmed().toStdString();
                 return r;
+            },
+            [](const TweakArgs&) {
+                RevertResult r{"disable-password-expiry", RevertOutcome::Failed, {}};
+                // Windows default max password age is 42 days.
+                Proc a = run("net", {"accounts", "/maxpwage:42"});
+                run("wmic", {"UserAccount", "set", "PasswordExpires=true"}, 30000);
+                r.outcome = a.code == 0 ? RevertOutcome::Reverted : RevertOutcome::Failed;
+                r.detail = "maxpwage=42, PasswordExpires=true";
+                return r;
             });
 
     if (id == "disable-fast-startup")
@@ -190,7 +254,7 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
             [] {
                 return hklm("SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power");
             },
-            "HiberbootEnabled", 0);
+            "HiberbootEnabled", 0, /*default*/ 1);
 
     if (id == "set-power-high-performance")
         return std::make_unique<CmdTweak>(
@@ -207,6 +271,14 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 r.outcome = p.code == 0 ? TweakOutcome::Applied : TweakOutcome::Failed;
                 r.detail = p.out.trimmed().toStdString();
                 return r;
+            },
+            [](const TweakArgs&) {
+                RevertResult r{"set-power-high-performance", RevertOutcome::Failed, {}};
+                // SCHEME_BALANCED is the Windows default.
+                Proc p = run("powercfg", {"/setactive", "SCHEME_BALANCED"});
+                r.outcome = p.code == 0 ? RevertOutcome::Reverted : RevertOutcome::Failed;
+                r.detail = "active scheme -> Balanced";
+                return r;
             });
 
     if (id == "disable-hibernate")
@@ -218,6 +290,13 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 Proc p = run("powercfg", {"/hibernate", "off"});
                 r.outcome = p.code == 0 ? TweakOutcome::Applied : TweakOutcome::Failed;
                 r.detail = p.out.trimmed().toStdString();
+                return r;
+            },
+            [](const TweakArgs&) {
+                RevertResult r{"disable-hibernate", RevertOutcome::Failed, {}};
+                Proc p = run("powercfg", {"/hibernate", "on"});
+                r.outcome = p.code == 0 ? RevertOutcome::Reverted : RevertOutcome::Failed;
+                r.detail = "hibernate on";
                 return r;
             });
 
@@ -238,6 +317,7 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 r.detail = p.out.trimmed().toStdString();
                 return r;
             });
+    // set-timezone has no revert - there is no "default" time zone to go back to.
 
     if (id == "enable-rdp")
         return std::make_unique<CmdTweak>(
@@ -258,6 +338,18 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 r.outcome = s.status() == QSettings::NoError ? TweakOutcome::Applied
                                                             : TweakOutcome::Failed;
                 r.detail = "fDenyTSConnections=0 + firewall";
+                return r;
+            },
+            [](const TweakArgs&) {
+                RevertResult r{"enable-rdp", RevertOutcome::Failed, {}};
+                QSettings s = hklm("SYSTEM\\CurrentControlSet\\Control\\Terminal Server");
+                s.setValue("fDenyTSConnections", 1);
+                s.sync();
+                run("netsh", {"advfirewall", "firewall", "set", "rule",
+                              "group=remote desktop", "new", "enable=No"});
+                r.outcome = s.status() == QSettings::NoError ? RevertOutcome::Reverted
+                                                            : RevertOutcome::Failed;
+                r.detail = "fDenyTSConnections=1 + firewall rule disabled";
                 return r;
             });
 
@@ -281,6 +373,7 @@ std::unique_ptr<ConfigTweak> makeTweak(const std::string& id) {
                 r.detail = p.out.trimmed().toStdString();
                 return r;
             });
+    // set-computer-name has no revert - the previous name isn't recorded.
 
     if (id == "clean-startup-items" || id == "disable-startup-item")
         return std::make_unique<CmdTweak>(
@@ -323,6 +416,36 @@ for ($i=0;$i -lt $run.Count;$i++){
                 Proc p = run("powershell", {"-NoProfile", "-NonInteractive", "-Command", ps},
                              45000);
                 r.outcome = p.code == 0 ? TweakOutcome::Applied : TweakOutcome::Failed;
+                r.detail = p.out.trimmed().toStdString();
+                return r;
+            },
+            [id](const TweakArgs& a) {
+                RevertResult r{id, RevertOutcome::Failed, {}};
+                const QString match =
+                    id == "disable-startup-item"
+                        ? QString::fromStdString(a.get("match"))
+                        : QString();
+                // Re-enable by writing the "enabled" bytes.
+                const QString ps = QString(R"(
+$paths = @(
+  'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run',
+  'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+)
+$enabled=[byte[]](0x02,0x00,0x00,0x00,0,0,0,0,0,0,0,0)
+$n=0
+foreach ($pth in $paths) {
+  if (-not (Test-Path $pth)) { continue }
+  foreach ($p in (Get-Item $pth).Property) {
+    if ('%1' -ne '' -and $p -notlike '*%1*') { continue }
+    Set-ItemProperty -Path $pth -Name $p -Value $enabled -Type Binary
+    $n++
+  }
+}
+"enabled $n"
+)").arg(match);
+                Proc p = run("powershell",
+                             {"-NoProfile", "-NonInteractive", "-Command", ps}, 45000);
+                r.outcome = p.code == 0 ? RevertOutcome::Reverted : RevertOutcome::Failed;
                 r.detail = p.out.trimmed().toStdString();
                 return r;
             });
@@ -373,6 +496,22 @@ TweakResult runTweak(const std::string& id, const TweakArgs& args, bool elevated
         return r;
     }
     return tweak->apply(args);
+}
+
+RevertResult revertTweak(const std::string& id, const TweakArgs& args, bool elevated) {
+    RevertResult r{id, RevertOutcome::Failed, {}};
+    auto tweak = makeTweak(id);
+    if (!tweak) {
+        r.detail = "unknown tweak id";
+        return r;
+    }
+    const TweakInfo i = tweak->info();
+    if (i.needsElevation && !elevated) {
+        r.outcome = RevertOutcome::Skipped;
+        r.detail = "needs Administrator";
+        return r;
+    }
+    return tweak->revert(args);
 }
 
 } // namespace shiftech::core::config

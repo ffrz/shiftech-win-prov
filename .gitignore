@@ -35,3 +35,4 @@ desktop.ini
 /apps/**/*.exe
 /apps/**/*.msi
 
+build2

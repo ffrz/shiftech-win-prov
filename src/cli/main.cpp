@@ -7,6 +7,7 @@
 #include "commands/DriversInstallCommand.h"
 #include "commands/AppsInstallCommand.h"
 #include "commands/ProvisionCommand.h"
+#include "commands/ResetCommand.h"
 
 namespace {
 
@@ -21,6 +22,7 @@ void printUsage(QTextStream& out) {
         << "  provisioner apps install --profile <name> [--dry-run] [--profiles-dir <dir>]\n"
         << "  provisioner provision --profile <name> [--dry-run] [--skip-drivers] [--skip-apps]\n"
         << "  provisioner report [--last | --run <id>] [--json]\n"
+        << "  provisioner reset [--last | --run <id>] [--dry-run] [--purge-cache]\n"
         << "  provisioner config list [--json]\n"
         << "\nGlobal:\n"
         << "  --json        machine-readable output where supported\n"
@@ -109,6 +111,10 @@ int main(int argc, char* argv[]) {
 
     if (command == "config") {
         return shiftech::cli::commands::ConfigCommand::run(args);
+    }
+
+    if (command == "reset") {
+        return shiftech::cli::commands::ResetCommand::run(args);
     }
 
     out << "Unknown command: " << command << "\n\n";
