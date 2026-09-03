@@ -1,0 +1,11 @@
+; Minimal fixture INF for tests only. Not a real driver.
+[Version]
+Signature   = "$Windows NT$"
+Class       = Net
+ClassGUID   = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider    = %ProviderName%
+CatalogFile = rt_nic.cat
+DriverVer   = 01/01/2020,1.0.0.0
+
+[Strings]
+ProviderName = "Shiftech Test Fixtures"

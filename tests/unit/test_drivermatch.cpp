@@ -83,10 +83,62 @@ private slots:
 
         Device dev;
         DriverSearchResult result;
-        result.found = true; 
-        
+        result.found = true;
+
         auto best = pickBest(dev, result, target);
         QVERIFY(!best.has_value());
+    }
+
+    void testHardwareIdBeatsCompatibleId() {
+        TargetSystem target;
+        target.os = TargetSystem::OsFamily::Win10;
+        target.arch = TargetSystem::Arch::x64;
+
+        Device dev;
+        DriverSearchResult result;
+        result.found = true;
+
+        // Compatible-ID match with a HIGHER version number...
+        DriverPackage compat;
+        compat.version = "9.9.9.9";
+        compat.arch = TargetSystem::Arch::x64;
+        compat.supportedOs = {"win10"};
+        compat.matchedVia = MatchVia::CompatibleId;
+
+        // ...must still lose to a Hardware-ID match with a lower version.
+        DriverPackage hwid;
+        hwid.version = "1.0.0.0";
+        hwid.arch = TargetSystem::Arch::x64;
+        hwid.supportedOs = {"win10"};
+        hwid.matchedVia = MatchVia::HardwareId;
+
+        result.candidates = {compat, hwid};
+        auto best = pickBest(dev, result, target);
+        QVERIFY(best.has_value());
+        QCOMPARE(best->version.c_str(), "1.0.0.0");
+        QCOMPARE(best->matchedVia, MatchVia::HardwareId);
+    }
+
+    void testVersionTieBreakWithinSameMatchClass() {
+        TargetSystem target;
+        target.os = TargetSystem::OsFamily::Win11;
+        target.arch = TargetSystem::Arch::x64;
+
+        Device dev;
+        DriverSearchResult result;
+        result.found = true;
+
+        DriverPackage older;
+        older.version = "1.0";
+        older.arch = TargetSystem::Arch::x64;
+        older.supportedOs = {"win11"};
+        older.matchedVia = MatchVia::HardwareId;
+
+        DriverPackage newer = older;
+        newer.version = "2.0";
+
+        result.candidates = {older, newer};
+        QCOMPARE(pickBest(dev, result, target)->version.c_str(), "2.0");
     }
 };
 

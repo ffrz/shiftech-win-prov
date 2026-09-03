@@ -75,21 +75,29 @@ DriverSearchResult MockDriverProvider::search(const hardware::Device& device, co
     }
 
     QJsonObject root = doc.object();
-    
-    // Check HWIDs first (exact hit)
+
+    // Check HardwareIDs first (more specific match)
     for (const auto& hwid : device.hardwareIds) {
         QString key = QString::fromStdString(hwid);
         if (root.contains(key)) {
             std::vector<DriverPackage> pkgs = parsePackages(root[key].toArray());
+            for (auto& p : pkgs) {
+                p.matchedVia = MatchVia::HardwareId;
+                p.matchedId = hwid;
+            }
             result.candidates.insert(result.candidates.end(), pkgs.begin(), pkgs.end());
         }
     }
-    
-    // Check CompatIDs next (compat hit)
+
+    // Then CompatibleIDs (weaker match)
     for (const auto& cid : device.compatibleIds) {
         QString key = QString::fromStdString(cid);
         if (root.contains(key)) {
             std::vector<DriverPackage> pkgs = parsePackages(root[key].toArray());
+            for (auto& p : pkgs) {
+                p.matchedVia = MatchVia::CompatibleId;
+                p.matchedId = cid;
+            }
             result.candidates.insert(result.candidates.end(), pkgs.begin(), pkgs.end());
         }
     }

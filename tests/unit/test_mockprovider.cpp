@@ -40,6 +40,33 @@ private slots:
         QVERIFY(!res.notFoundReason.empty());
     }
 
+    void testCompatibleIdMatchIsTagged() {
+        QString idx = QString(FIXTURES_DIR) + "/driver_index.json";
+        MockDriverProvider provider(idx.toStdString());
+
+        Device dev;
+        dev.compatibleIds = {"PCI\\VEN_8086&CC_0300"};
+
+        TargetSystem target;
+        DriverSearchResult res = provider.search(dev, target);
+        QVERIFY2(res.found, res.notFoundReason.c_str());
+        QCOMPARE(res.candidates.size(), 1);
+        QCOMPARE(res.candidates[0].matchedVia, MatchVia::CompatibleId);
+    }
+
+    void testHardwareIdMatchIsTagged() {
+        QString idx = QString(FIXTURES_DIR) + "/driver_index.json";
+        MockDriverProvider provider(idx.toStdString());
+
+        Device dev;
+        dev.hardwareIds = {"PCI\\VEN_10EC&DEV_8168"};
+
+        TargetSystem target;
+        DriverSearchResult res = provider.search(dev, target);
+        QVERIFY(res.found);
+        QCOMPARE(res.candidates[0].matchedVia, MatchVia::HardwareId);
+    }
+
     void testMissingIndexFile() {
         MockDriverProvider provider("non_existent_file.json");
 
