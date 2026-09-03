@@ -1,0 +1,8 @@
+{
+  "name": "duplicate_id",
+  "description": "Has a duplicate app id",
+  "applications": [
+    { "id": "Google.Chrome", "required": true },
+    { "id": "Google.Chrome" }
+  ]
+}

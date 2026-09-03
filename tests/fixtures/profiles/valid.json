@@ -1,0 +1,8 @@
+{
+  "name": "valid",
+  "description": "A valid profile",
+  "applications": [
+    { "id": "Google.Chrome", "required": true },
+    { "id": "7zip.7zip" }
+  ]
+}

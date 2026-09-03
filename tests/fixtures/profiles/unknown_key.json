@@ -1,0 +1,6 @@
+{
+  "name": "unknown_key",
+  "description": "Has an unexpected top-level key",
+  "surprise": true,
+  "applications": []
+}
