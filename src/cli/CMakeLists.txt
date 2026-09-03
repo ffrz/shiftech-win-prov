@@ -1,7 +1,8 @@
-qt_add_executable(provisioner 
+qt_add_executable(provisioner
     main.cpp
     commands/ScanCommand.cpp
     commands/DriversScanCommand.cpp
+    commands/DriversResolveCommand.cpp
     commands/AppsInstallCommand.cpp
 )
 

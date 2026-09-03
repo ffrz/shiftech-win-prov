@@ -2,13 +2,13 @@
 #include "../../core/system/SystemInspector.h"
 #include "../../core/hardware/DeviceEnumerator.h"
 #include "../../core/drivers/DriverProvider.h"
-#include "../../core/drivers/MockDriverProvider.h"
+#include "../../core/drivers/DriverProviderFactory.h"
+#include "../../core/drivers/ProviderChain.h"
 #include "../../core/drivers/DriverMatch.h"
 #include <QTextStream>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <memory>
 #include <QDir>
 #include <QFileInfo>
 #include <QCoreApplication>
@@ -62,19 +62,17 @@ int DriversScanCommand::run(bool jsonOutput, const QString& providerName, const 
     out.setCodec("UTF-8");
 #endif
 
-    std::unique_ptr<DriverProvider> provider;
+    // Build the resolution path. Empty providerName => default provider chain.
+    // "--provider mock" forces a single mock provider (needs a driver index).
+    FactoryOptions fo;
+    QString order;
     if (providerName == "mock") {
         QString idx = indexFile;
         if (idx.isEmpty()) {
-            // Look for a driver index next to the executable, then a couple of
-            // repo-relative fallbacks (running from a build tree).
             const QString exeDir = QCoreApplication::applicationDirPath();
-            const QStringList candidates = {
-                exeDir + "/driver_index.json",
-                exeDir + "/../tests/fixtures/driver_index.json",
-                exeDir + "/../../tests/fixtures/driver_index.json",
-            };
-            for (const QString& c : candidates) {
+            for (const QString& c : {exeDir + "/driver_index.json",
+                                     exeDir + "/../tests/fixtures/driver_index.json",
+                                     exeDir + "/../../tests/fixtures/driver_index.json"}) {
                 if (QFileInfo::exists(c)) { idx = c; break; }
             }
             if (idx.isEmpty()) {
@@ -82,15 +80,20 @@ int DriversScanCommand::run(bool jsonOutput, const QString& providerName, const 
                 return 2;
             }
         }
-        provider = std::make_unique<MockDriverProvider>(idx.toStdString());
-    } else if (providerName == "driverpack") {
-        out << "Error: driverpack provider is not implemented "
-               "(pending DriverPack investigation, ADR-0007).\n";
-        return 2;
-    } else {
-        out << "Error: Unknown provider '" << providerName << "'.\n";
+        fo.mockIndexPath = idx;
+        order = "mock";
+    } else if (!providerName.isEmpty()) {
+        order = providerName; // single named provider, e.g. "localcache"
+        fo.mockIndexPath = indexFile;
+    }
+
+    std::string err;
+    auto chainOpt = buildProviderChain(order.toStdString(), fo, err);
+    if (!chainOpt) {
+        out << "Error: " << QString::fromStdString(err) << "\n";
         return 2;
     }
+    ProviderChain chain = std::move(*chainOpt);
 
     SystemInfo sys = SystemInspector::inspect();
     TargetSystem target = currentTarget(sys);
@@ -99,15 +102,20 @@ int DriversScanCommand::run(bool jsonOutput, const QString& providerName, const 
     std::vector<Device> needingDriver = enumerator.enumerateNeedingDriver();
 
     QJsonArray resultsArray;
-    
+
     if (!jsonOutput) {
         out << "Shiftech Win Provisioner - drivers scan\n\n";
-        out << "Provider: " << QString::fromStdString(provider->name()) << "\n";
-        out << "Devices needing a driver (" << needingDriver.size() << ")\n\n";
+        out << "Chain: ";
+        const auto names = chain.names();
+        for (size_t i = 0; i < names.size(); ++i) {
+            out << QString::fromStdString(names[i]);
+            if (i + 1 < names.size()) out << " -> ";
+        }
+        out << "\nDevices needing a driver (" << needingDriver.size() << ")\n\n";
     }
 
     for (const auto& d : needingDriver) {
-        DriverSearchResult result = provider->search(d, target);
+        DriverSearchResult result = chain.resolve(d, target);
         auto best = pickBest(d, result, target);
 
         if (jsonOutput) {

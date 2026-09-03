@@ -3,6 +3,7 @@
 #include <QTextStream>
 #include "commands/ScanCommand.h"
 #include "commands/DriversScanCommand.h"
+#include "commands/DriversResolveCommand.h"
 #include "commands/AppsInstallCommand.h"
 
 namespace {
@@ -12,6 +13,8 @@ void printUsage(QTextStream& out) {
         << "Usage:\n"
         << "  provisioner scan [--json]\n"
         << "  provisioner drivers scan [--json] [--provider <name>] [--driver-index <path>]\n"
+        << "  provisioner drivers resolve [--download] [--json] [--provider-order <csv>]\n"
+        << "                              [--cache-dir <p>] [--driver-index <p>] [--mirror-url <u>]\n"
         << "  provisioner apps install --profile <name> [--dry-run] [--profiles-dir <dir>]\n"
         << "\nGlobal:\n"
         << "  --json        machine-readable output where supported\n"
@@ -56,7 +59,7 @@ int main(int argc, char* argv[]) {
         }
         const QString sub = args.takeFirst();
         if (sub == "scan") {
-            QString provider = "mock";
+            QString provider;   // empty => provider chain
             QString indexFile;
             for (int i = 0; i < args.size(); ++i) {
                 if (args[i] == "--provider" && i + 1 < args.size()) provider = args[++i];
@@ -64,7 +67,10 @@ int main(int argc, char* argv[]) {
             }
             return shiftech::cli::commands::DriversScanCommand::run(hasJson(args), provider, indexFile);
         }
-        out << "Unknown drivers subcommand: " << sub << "\n";
+        if (sub == "resolve") {
+            return shiftech::cli::commands::DriversResolveCommand::run(args);
+        }
+        out << "Unknown drivers subcommand: " << sub << " (expected: scan, resolve)\n";
         return 3;
     }
 
