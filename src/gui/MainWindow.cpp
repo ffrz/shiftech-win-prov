@@ -157,7 +157,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 void MainWindow::populateProfiles() {
     m_profileBox->blockSignals(true);
     m_profileBox->clear();
-    m_profileBox->addItem("(custom — start from blank)", QString());
     const QString exeDir = QCoreApplication::applicationDirPath();
     for (const QString& d : {exeDir + "/profiles", exeDir + "/../profiles",
                              exeDir + "/../../profiles"}) {
@@ -165,8 +164,15 @@ void MainWindow::populateProfiles() {
         if (!dir.exists()) continue;
         for (const QFileInfo& fi : dir.entryInfoList({"*.json"}, QDir::Files, QDir::Name))
             m_profileBox->addItem(fi.completeBaseName(), fi.absoluteFilePath());
-        if (m_profileBox->count() > 1) break;
+        if (m_profileBox->count() > 0) break;
     }
+    if (m_profileBox->count() == 0)
+        m_profileBox->addItem("(no profiles found in profiles\\)", QString());
+
+    // Default to "standard" if present.
+    const int std = m_profileBox->findText("standard");
+    if (std >= 0) m_profileBox->setCurrentIndex(std);
+
     m_profileBox->blockSignals(false);
 }
 
@@ -174,8 +180,10 @@ void MainWindow::onProfilePicked(int index) {
     const QString path = m_profileBox->itemData(index).toString();
     if (path.isEmpty()) {
         m_tabs->seed(blankProfile());
+        m_startBtn->setEnabled(false);
         return;
     }
+    m_startBtn->setEnabled(true);
     auto loaded = profiles::ProfileLoader::load(path.toStdString());
     if (std::holds_alternative<profiles::Profile>(loaded)) {
         m_tabs->seed(std::get<profiles::Profile>(loaded));
@@ -183,6 +191,7 @@ void MainWindow::onProfilePicked(int index) {
         m_currentTask->setText("Profile error: " +
             QString::fromStdString(std::get<profiles::ProfileLoadError>(loaded).message));
         m_tabs->seed(blankProfile());
+        m_startBtn->setEnabled(false);
     }
 }
 

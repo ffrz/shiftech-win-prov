@@ -91,7 +91,7 @@ ChecklistTabs::ChecklistTabs(QWidget* parent) : QWidget(parent) {
         l->addWidget(hint);
 
         m_deviceTable = new QTableWidget(0, 3, drivers);
-        m_deviceTable->setHorizontalHeaderLabels({"Install?", "Device", "Hardware ID"});
+        m_deviceTable->setHorizontalHeaderLabels({"", "Device", "Hardware ID"});
         m_deviceTable->horizontalHeader()->setStretchLastSection(true);
         m_deviceTable->setColumnWidth(0, 60);
         makeReadOnly(m_deviceTable);
@@ -111,7 +111,7 @@ ChecklistTabs::ChecklistTabs(QWidget* parent) : QWidget(parent) {
         l->addWidget(hint);
 
         m_appTable = new QTableWidget(0, 3, apps);
-        m_appTable->setHorizontalHeaderLabels({"Install?", "Application", "Source"});
+        m_appTable->setHorizontalHeaderLabels({"", "Application", "Source"});
         m_appTable->horizontalHeader()->setStretchLastSection(false);
         m_appTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
         m_appTable->setColumnWidth(0, 60);
@@ -134,7 +134,7 @@ ChecklistTabs::ChecklistTabs(QWidget* parent) : QWidget(parent) {
         l->addWidget(hint);
 
         m_configTable = new QTableWidget(0, 2, config);
-        m_configTable->setHorizontalHeaderLabels({"Apply?", "Tweak"});
+        m_configTable->setHorizontalHeaderLabels({"", "Tweak"});
         m_configTable->horizontalHeader()->setStretchLastSection(true);
         m_configTable->setColumnWidth(0, 60);
         makeReadOnly(m_configTable);
