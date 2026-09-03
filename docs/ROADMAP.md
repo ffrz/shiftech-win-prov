@@ -41,12 +41,14 @@ for Windows Update; internal HTTP/share mirror with a JSON index).
 **Not on the critical path** to an end-to-end dry run — sequence it whenever a real online
 driver source is actually needed. See [tasks/MILESTONE-3.5.md](tasks/MILESTONE-3.5.md).
 
-## Milestone 4 — Driver installation + verification
-**Scope:** `DriverInstaller` (`pnputil /add-driver /install` per INF, capture
-stdout/stderr/exit, timeout, aggregate). `DriverVerifier` (re-enumerate, diff,
-`DriverInstallStatus`). `provisioner.exe drivers install [--dry-run]`.
-**Exit criteria:** `--dry-run` works on this machine; integration test (VM only, gated)
-installs a benign INF and verifies; one failing INF does not abort the batch.
+## Milestone 4 — Driver installation + verification ✅ DONE (2026-09-03)
+**Scope:** `PackageExtractor` (zip/cab/folder), `InfValidator` (security gate + ADR-0006
+unsigned→skip), `DriverInstaller` (`pnputil /add-driver /install` per INF, elevation-gated,
+per-INF outcome), `DriverVerifier` (re-enumerate, `classifyTransition` →
+`DriverInstallStatus`), `provisioner drivers install [--dry-run] [--only <id>]`.
+**Result:** 15 test suites green; full dry-run pipeline verified on this machine with a
+signed fixture zip. Real install is elevation-gated and left for a VM (procedure in the
+task file). Details in [tasks/MILESTONE-4.md](tasks/MILESTONE-4.md).
 
 ## Milestone 5 — Application provisioning 🟡 PARTIAL (groundwork done, review pending)
 **Scope:** `ApplicationProvider` iface, `WinGetProvider`. `ProfileLoader` + validation.

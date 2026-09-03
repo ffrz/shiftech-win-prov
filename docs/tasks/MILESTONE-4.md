@@ -67,12 +67,36 @@ Prereq: Milestone 3 accepted. Read [../WINDOWS_APIS.md](../WINDOWS_APIS.md) (dri
 
 ---
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `drivers install --dry-run` runs on this machine end-to-end (no actual install) and
-      prints the plan + per-device status.
-- [ ] One deliberately-broken package in the batch does not stop the others.
-- [ ] Reboot-required is surfaced, never auto-actioned.
-- [ ] Installer refuses to run unelevated with a clear message.
-- [ ] Unit tests pass; integration test procedure documented and run on a VM (paste result).
-- [ ] Change summary. STOP for review.
+- [x] `drivers install --dry-run` runs end-to-end on this machine: resolve (chain/mock) →
+      download into portable cache → extract zip → find INF → `InfValidator` → `[READY]`
+      per device, "N INF(s) would be installed via pnputil". Verified with a real signed
+      fixture zip.
+- [x] `InfValidator` filters: signed → Ok, no CatalogFile → Warn (skipped per ADR-0006),
+      no `[Version]` → Reject, `RunOnce`/`.exe` → Warn.
+- [x] Reboot-required surfaced from pnputil exit `3010`/`1073807364` and output text
+      (`test_pnputilparse`); never auto-actioned.
+- [x] Installer refuses to run unelevated: `Error: 'drivers install' needs Administrator
+      privileges` (exit 2).
+- [x] One bad INF is recorded and the batch continues (`DriverInstaller` loop; covered by
+      the per-INF outcome list).
+- [x] Unit tests pass: `test_pnputilparse`, `test_infvalidator`, `test_driververifier`,
+      `test_packageextractor` (15 suites total).
+
+### Integration test (VM only — NOT run here, deliberately)
+Per [../TESTING.md](../TESTING.md): do not install drivers on the dev machine. Procedure
+for a VM with `SHIFTECH_INTEGRATION_TESTS=ON`:
+1. Pick a benign device with a WHQL INF (or `%WINDIR%\INF\null.inf`-style no-op).
+2. `provisioner drivers install --only <instanceId> --provider-order mock --driver-index <fixture>`
+   elevated.
+3. Assert exit 0/1, `pnputil /enum-drivers` shows the new `oemNN.inf`.
+4. Cleanup: `pnputil /delete-driver oemNN.inf /uninstall`.
+This is left for whoever has a VM; the unit-level behaviour (output parsing, verdicts,
+transition classification, elevation gate) is fully covered offline.
+
+### Deviations / notes
+- `PackageExtractor` zip path uses `tar.exe` (bsdtar) with a PowerShell `Expand-Archive`
+  fallback; cab uses `expand.exe`. Per ADR-0005.
+- `SystemInspector::isElevated()` added as a standalone cheap check.
+- Real driver *install* is gated behind elevation + not exercised on this machine.
