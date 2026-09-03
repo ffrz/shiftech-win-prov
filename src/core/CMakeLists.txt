@@ -21,6 +21,11 @@ add_library(shiftech_core STATIC
     profiles/ProfileLoader.cpp
     applications/WinGetOutput.cpp
     applications/WinGetProvider.cpp
+    logging/StructuredLogger.cpp
+    provisioning/ProvisioningEvent.cpp
+    provisioning/ProvisioningState.cpp
+    provisioning/ReportBuilder.cpp
+    provisioning/ProvisioningEngine.cpp
 )
 
 target_include_directories(shiftech_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
