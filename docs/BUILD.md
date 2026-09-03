@@ -49,7 +49,28 @@ build/                     # gitignored
 
 ## Commands
 
-Use the wrappers in `scripts/` (they set PATH for Qt + MinGW + Ninja):
+### PowerShell (recommended)
+
+```powershell
+# Build + test + stage a portable dist\ShiftechWinProvisioner\ folder
+scripts\build-release.ps1                 # Release, GUI on, runs tests
+scripts\build-release.ps1 -Clean -Zip     # wipe build\ first, also make a .zip
+scripts\build-release.ps1 -NoGui -NoTests # CLI only, fast
+
+# Run it (build tree or the portable folder)
+scripts\run-app.ps1 scan
+scripts\run-app.ps1 provision --profile standard --dry-run
+scripts\run-app.ps1 -Gui                              # launch shiftech_gui.exe
+scripts\run-app.ps1 -Portable provision --profile standard   # from dist\
+scripts\run-app.ps1 -Elevated provision --profile standard   # UAC prompt (real install)
+scripts\run-app.ps1 -Build drivers resolve           # build first, then run
+```
+
+`build-release.ps1` runs `windeployqt` so the staged `dist\` folder is self-contained and
+can be copied to a USB drive; `cache\` / `logs\` / `profiles\` there are resolved relative
+to the exe.
+
+### Batch wrappers (also present)
 
 ```bat
 scripts\configure.bat            :: cmake -G Ninja -S . -B build  (Release)
