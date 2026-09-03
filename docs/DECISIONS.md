@@ -22,16 +22,27 @@ dependency.
 the executable self-contained without adding vendored YAML parsing dependencies.
 **Consequences:** Profiles must be authored in JSON.
 
-## ADR-0003 — Windows 7/8 support for a Qt 6 GUI (OPEN RISK)
-**Status:** proposed
-**Context:** Targets include Windows 7 (x86 + x64) and Windows 8 x64. Qt 6 officially
-requires Windows 10+.
-**Options:** (a) Qt 5.15 build of the GUI for legacy OS; (b) static Qt 6 build + test on
-Win7 (may still fail on missing APIs); (c) ship the **CLI** (kept Qt-minimal / Qt-Core-only
-or Qt-free) as the Win7/8 story and Qt 6 GUI for Win10/11 only.
-**Decision:** deferred to Milestone 7. Until then: keep `shiftech_core` + `provisioner`
-buildable with the smallest possible Qt surface so option (c) stays viable.
-**Consequences:** Avoid Qt-only constructs in core where a std equivalent exists.
+## ADR-0003 — Windows 7/8 support: CLI-only on legacy, Qt 6 GUI for Win10/11
+**Status:** accepted (Milestone 7, 2026-09-03)
+**Context:** Targets include Windows 7 (x86 + x64) and Windows 8 x64. Qt 6.6 officially
+requires Windows 10 1809+. A dedicated Win7 VM was not available to test on during M7.
+**Decision:** **Option (c).** On Windows 7/8, ship **`provisioner.exe` (CLI) only**. The
+Qt 6 Widgets GUI (`shiftech_gui.exe`) targets Windows 10/11.
+- `shiftech_core` + the CLI stay on the smallest practical Qt surface (Core + Network) so
+  a future static or Qt-5.15 CLI build for Win7 remains a small change.
+- The CLI already covers 100% of functionality (`scan`, `drivers scan/resolve/install`,
+  `apps install`, `provision`, `report`), so legacy machines lose only the dashboard.
+- The portable USB workflow is CLI-driven anyway (`provisioner provision --profile … `),
+  which is the primary legacy-machine use case.
+**Not chosen:** (a) a parallel Qt 5.15 GUI build doubles the UI maintenance for a shrinking
+OS base; (b) a static Qt 6 build still risks missing Win7 APIs (`d3d`, `dcomp`,
+user-mode font APIs) and needs a source build of Qt.
+**Revisit if:** a customer specifically needs the GUI on Win7/8 — then do (a) as a
+separate `shiftech_gui_legacy` target, reusing `EngineController`/`MainWindow` largely
+unchanged (they are plain Widgets).
+**Consequences:** the installer/packaging for legacy media bundles only the CLI + its Qt
+Core/Network DLLs (smaller). Keep avoiding Qt-only constructs in core where a std
+equivalent exists.
 
 ## ADR-0004 — Driver resolution: portable local cache first, then a chain of providers
 **Status:** accepted (owner decision 2026-09-03); DriverPack sub-investigation still **open**

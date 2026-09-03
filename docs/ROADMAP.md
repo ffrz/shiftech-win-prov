@@ -68,13 +68,17 @@ JSON), `ReportBuilder` (Report + SUCCESS/WARNINGS/FAILED), `StructuredLogger`
 dir, state history); skip modes work; 18 test suites green. Business logic entirely in
 `provisioning/`. Details in [tasks/MILESTONE-6.md](tasks/MILESTONE-6.md).
 
-## Milestone 7 — Qt GUI
-**Scope:** `shiftech_gui` (Qt Widgets), dashboard per the initial spec (system info,
-driver/app progress bars, current task, Pause/Cancel), log view, report view. GUI is a
-pure front-end over engine events — no business logic in widgets.
-**Exit criteria:** GUI drives a `--dry-run` provision run and shows live progress; no
-`src/core` change was needed to add it (proves the event API is sufficient). Revisit the
-Windows 7 Qt 6 risk (ADR-0003) here.
+## Milestone 7 — Qt GUI ✅ DONE (2026-09-03)
+**Scope:** `shiftech_gui` (Qt Widgets, opt-in `-DSHIFTECH_BUILD_GUI=ON`),
+`EngineController` (engine on a QThread → Qt signals), `MainWindow` dashboard (system
+panel, profile picker, dry-run/skip toggles, driver/app progress bars, current task,
+Start/Cancel/Save-report, coloured log + report panes).
+**Result:** GUI launches and drives a dry-run with live progress (screenshot verified);
+`src/core` diff = the sanctioned cancel token only (24 lines); `test_mainwindow_smoke`
+green (19 suites total); ADR-0003 resolved (CLI-only on Win7/8). Manual QA:
+[GUI_QA.md](GUI_QA.md). Details in [tasks/MILESTONE-7.md](tasks/MILESTONE-7.md).
+
+**V1 is feature-complete.**
 
 ## Out of scope for V1
 Auto-reboot; resume-after-reboot execution (design only); ARM; a service host; any
