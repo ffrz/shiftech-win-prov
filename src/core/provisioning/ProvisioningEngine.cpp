@@ -73,6 +73,21 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         le.progress = p;
         logger.recordEvent(le);
     };
+    auto cancelled = [&]() {
+        return opts.cancelRequested && opts.cancelRequested->load();
+    };
+    auto finishEarly = [&](const char* why) -> ProvisioningResult {
+        ev("pipeline", Severity::Warning, std::string("cancelled: ") + why);
+        st.finishedAtMs = nowMs();
+        if (st.stage != Stage::Report && st.stage != Stage::Done &&
+            isLegalTransition(st.stage, Stage::Report)) {
+            st.transitionTo(Stage::Report);
+        }
+        result.report = buildReport(st);
+        if (isLegalTransition(st.stage, Stage::Done)) st.transitionTo(Stage::Done);
+        logger.finalize(st, result.report.toJson());
+        return result;
+    };
     auto fail = [&](const std::string& why) -> ProvisioningResult {
         st.fatalError = why;
         st.transitionTo(Stage::Failed);
@@ -145,6 +160,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         std::vector<Planned> planned;
         int i = 0;
         for (const auto& d : needing) {
+            if (cancelled()) return finishEarly("during driver resolution");
             const int prog = ++i * 100 / std::max<int>(1, (int)needing.size());
             auto sr = chain.resolve(d, target);
             auto best = drivers::pickBest(d, sr, target);
@@ -163,6 +179,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         std::vector<Planned> downloaded;
         i = 0;
         for (const auto& p : planned) {
+            if (cancelled()) return finishEarly("during driver download");
             const int prog = ++i * 100 / std::max<int>(1, (int)planned.size());
             std::vector<std::string> ids = p.dev.hardwareIds;
             ids.insert(ids.end(), p.dev.compatibleIds.begin(), p.dev.compatibleIds.end());
@@ -291,6 +308,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         tick(Stage::AppInstall);
         int i = 0;
         for (const auto& app : profile.applications) {
+            if (cancelled()) return finishEarly("during application install");
             const int prog = ++i * 100 / std::max<int>(1, (int)profile.applications.size());
             AppItemResult ar;
             ar.id = app.id;

@@ -4,6 +4,7 @@
 #include "ProvisioningState.h"
 #include "ReportBuilder.h"
 #include <QString>
+#include <atomic>
 #include <string>
 
 namespace shiftech::core::provisioning {
@@ -19,6 +20,11 @@ struct ProvisioningOptions {
     QString logDir;                   // "" => <exeDir>/logs
     QString mockDriverIndex;          // for --provider-order mock
     std::string mirrorUrl;
+
+    // Cooperative cancellation. When set and observed true between items, the engine
+    // stops starting new work, finalizes the report with what completed, and returns.
+    // Owned by the caller; may be null.
+    const std::atomic<bool>* cancelRequested = nullptr;
 };
 
 struct ProvisioningResult {
