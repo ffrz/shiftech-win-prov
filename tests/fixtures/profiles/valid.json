@@ -1,8 +1,19 @@
 {
   "name": "valid",
-  "description": "A valid profile",
+  "description": "A valid three-section profile",
+  "drivers": {
+    "enabled": true,
+    "providerOrder": "localcache,mirror",
+    "installUnsigned": false,
+    "exclude": ["USB\\VID_0BDA&PID_8153"]
+  },
   "applications": [
-    { "id": "Google.Chrome", "required": true },
-    { "id": "7zip.7zip" }
+    { "id": "chrome", "source": "winget", "wingetId": "Google.Chrome", "enabled": true, "required": true },
+    { "id": "winrar", "source": "local", "enabled": true },
+    { "id": "vlc",    "source": "winget", "wingetId": "VideoLAN.VLC", "enabled": false }
+  ],
+  "config": [
+    { "id": "show-file-extensions", "enabled": true },
+    { "id": "set-timezone", "enabled": false, "args": { "id": "SE Asia Standard Time" } }
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "name": "bad_tweak",
+  "description": "References an unknown config tweak id",
+  "config": [
+    { "id": "make-computer-fast", "enabled": true }
+  ]
+}

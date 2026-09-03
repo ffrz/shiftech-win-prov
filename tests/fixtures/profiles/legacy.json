@@ -1,0 +1,8 @@
+{
+  "name": "legacy",
+  "description": "Old-style profile: applications with just id + required",
+  "applications": [
+    { "id": "Google.Chrome", "required": true },
+    { "id": "7zip.7zip" }
+  ]
+}

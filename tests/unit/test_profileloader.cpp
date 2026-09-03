@@ -17,10 +17,46 @@ private slots:
         QVERIFY(std::holds_alternative<Profile>(r));
         const Profile& p = std::get<Profile>(r);
         QCOMPARE(p.name.c_str(), "valid");
-        QCOMPARE(p.applications.size(), size_t(2));
-        QCOMPARE(p.applications[0].id.c_str(), "Google.Chrome");
+
+        // drivers section
+        QCOMPARE(p.drivers.enabled, true);
+        QCOMPARE(p.drivers.providerOrder.c_str(), "localcache,mirror");
+        QCOMPARE(p.drivers.exclude.size(), size_t(1));
+
+        // applications: 3 total, 2 enabled
+        QCOMPARE(p.applications.size(), size_t(3));
+        QCOMPARE(p.enabledApps().size(), size_t(2));
+        QCOMPARE(p.applications[0].id.c_str(), "chrome");
+        QCOMPARE(p.applications[0].wingetId.c_str(), "Google.Chrome");
+        QCOMPARE(p.applications[0].source == AppSource::WinGet, true);
         QCOMPARE(p.applications[0].required, true);
-        QCOMPARE(p.applications[1].required, false); // default
+        QCOMPARE(p.applications[1].source == AppSource::Local, true);
+        QCOMPARE(p.applications[2].enabled, false);
+
+        // config: 2 total, 1 enabled
+        QCOMPARE(p.config.size(), size_t(2));
+        QCOMPARE(p.enabledConfig().size(), size_t(1));
+        QCOMPARE(p.config[1].id.c_str(), "set-timezone");
+        QCOMPARE(p.config[1].args.at("id").c_str(), "SE Asia Standard Time");
+    }
+
+    void rejectsUnknownTweakId() {
+        auto r = ProfileLoader::load(fixture("bad_tweak.json"));
+        QVERIFY(std::holds_alternative<ProfileLoadError>(r));
+    }
+
+    void rejectsBadAppSource() {
+        auto r = ProfileLoader::load(fixture("bad_source.json"));
+        QVERIFY(std::holds_alternative<ProfileLoadError>(r));
+    }
+
+    void backwardCompatOldFormat() {
+        // an "applications" array of {id, required} with no source still loads
+        auto r = ProfileLoader::load(fixture("legacy.json"));
+        QVERIFY(std::holds_alternative<Profile>(r));
+        const Profile& p = std::get<Profile>(r);
+        QCOMPARE(p.applications[0].source == AppSource::WinGet, true);
+        QCOMPARE(p.applications[0].wingetId.c_str(), "Google.Chrome"); // falls back to id
     }
 
     void rejectsMissingDescription() {

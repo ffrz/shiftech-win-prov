@@ -1,0 +1,7 @@
+{
+  "name": "bad_source",
+  "description": "App with an invalid source",
+  "applications": [
+    { "id": "x", "source": "chocolatey" }
+  ]
+}
