@@ -1,6 +1,7 @@
 # GUI widgets as a static lib so both the app and the smoke test can link them.
 qt_add_library(shiftech_gui_lib STATIC
     EngineController.cpp
+    ChecklistTabs.cpp
     MainWindow.cpp
 )
 target_link_libraries(shiftech_gui_lib PUBLIC shiftech_core Qt6::Core Qt6::Widgets)

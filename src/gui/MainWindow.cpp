@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 
+#include "ChecklistTabs.h"
+#include "../core/profiles/ProfileLoader.h"
 #include "../core/system/SystemInspector.h"
 
 #include <QCheckBox>
@@ -9,7 +11,6 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonDocument>
@@ -28,22 +29,30 @@ namespace shiftech::gui {
 namespace {
 QColor severityColor(int sev) {
     switch (sev) {
-        case 1: return QColor(0x2e, 0x7d, 0x32);  // success
-        case 2: return QColor(0xef, 0x6c, 0x00);  // warning
-        case 3: return QColor(0xc6, 0x28, 0x28);  // error
-        default: return QColor(0x42, 0x42, 0x42); // info
+        case 1: return QColor(0x2e, 0x7d, 0x32);
+        case 2: return QColor(0xef, 0x6c, 0x00);
+        case 3: return QColor(0xc6, 0x28, 0x28);
+        default: return QColor(0x42, 0x42, 0x42);
     }
+}
+
+profiles::Profile blankProfile() {
+    profiles::Profile p;
+    p.name = "custom";
+    p.description = "Ad-hoc selection";
+    p.drivers.enabled = true;
+    return p;
 }
 } // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("Shiftech Win Provisioner");
-    resize(760, 640);
+    resize(860, 760);
 
     auto* central = new QWidget(this);
     auto* root = new QVBoxLayout(central);
 
-    // --- System panel ---
+    // System panel
     auto* sysGroup = new QGroupBox("System", central);
     auto* sysLayout = new QVBoxLayout(sysGroup);
     m_systemLabel = new QLabel(sysGroup);
@@ -52,7 +61,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     const system::SystemInfo info = system::SystemInspector::inspect();
     m_systemLabel->setText(
-        QString("%1  (build %2)\nArchitecture: %3\nElevated: %4    winget: %5    pnputil: %6")
+        QString("%1  (build %2)   %3   Elevated: %4    winget: %5    pnputil: %6")
             .arg(QString::fromStdString(info.productName))
             .arg(info.buildNumber)
             .arg(info.arch == system::Arch::X64 ? "x64"
@@ -61,80 +70,108 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
             .arg(info.wingetAvailable ? "yes" : "no")
             .arg(info.pnputilAvailable ? "yes" : "no"));
 
-    // --- Options ---
-    auto* optGroup = new QGroupBox("Run", central);
-    auto* optForm = new QFormLayout(optGroup);
-    m_profileBox = new QComboBox(optGroup);
-    m_dryRunBox = new QCheckBox("Dry run (no changes)", optGroup);
+    // Profile row
+    auto* pRow = new QHBoxLayout;
+    pRow->addWidget(new QLabel("Profile:"));
+    m_profileBox = new QComboBox(central);
+    pRow->addWidget(m_profileBox, 1);
+    m_dryRunBox = new QCheckBox("Dry run (no changes)", central);
     m_dryRunBox->setChecked(true);
-    m_skipDriversBox = new QCheckBox("Skip drivers", optGroup);
-    m_skipAppsBox = new QCheckBox("Skip applications", optGroup);
-    optForm->addRow("Profile:", m_profileBox);
-    optForm->addRow("", m_dryRunBox);
-    optForm->addRow("", m_skipDriversBox);
-    optForm->addRow("", m_skipAppsBox);
-    root->addWidget(optGroup);
-    populateProfiles();
+    pRow->addWidget(m_dryRunBox);
+    m_saveProfileBtn = new QPushButton("Save as profile…", central);
+    pRow->addWidget(m_saveProfileBtn);
+    root->addLayout(pRow);
 
-    // --- Progress ---
+    // Checklist tabs
+    m_tabs = new ChecklistTabs(central);
+    root->addWidget(m_tabs, 2);
+
+    // Progress
     auto* progGroup = new QGroupBox("Progress", central);
-    auto* progForm = new QFormLayout(progGroup);
-    m_driverBar = new QProgressBar(progGroup);
-    m_appBar = new QProgressBar(progGroup);
+    auto* pg = new QVBoxLayout(progGroup);
+    auto rowFor = [&](const char* label, QProgressBar*& bar) {
+        auto* h = new QHBoxLayout;
+        h->addWidget(new QLabel(label));
+        bar = new QProgressBar;
+        h->addWidget(bar);
+        pg->addLayout(h);
+    };
+    rowFor("Drivers:", m_driverBar);
+    rowFor("Applications:", m_appBar);
     m_currentTask = new QLabel("Idle", progGroup);
-    progForm->addRow("Drivers:", m_driverBar);
-    progForm->addRow("Applications:", m_appBar);
-    progForm->addRow("Current task:", m_currentTask);
+    pg->addWidget(m_currentTask);
     root->addWidget(progGroup);
 
-    // --- Buttons ---
-    auto* btnRow = new QHBoxLayout();
+    // Buttons
+    auto* bRow = new QHBoxLayout;
     m_startBtn = new QPushButton("Start", central);
     m_cancelBtn = new QPushButton("Cancel", central);
     m_cancelBtn->setEnabled(false);
     m_saveReportBtn = new QPushButton("Save report…", central);
     m_saveReportBtn->setEnabled(false);
-    btnRow->addWidget(m_startBtn);
-    btnRow->addWidget(m_cancelBtn);
-    btnRow->addStretch();
-    btnRow->addWidget(m_saveReportBtn);
-    root->addLayout(btnRow);
+    bRow->addWidget(m_startBtn);
+    bRow->addWidget(m_cancelBtn);
+    bRow->addStretch();
+    bRow->addWidget(m_saveReportBtn);
+    root->addLayout(bRow);
 
-    // --- Log + report ---
+    // Log + report
     m_log = new QPlainTextEdit(central);
     m_log->setReadOnly(true);
     m_log->setMaximumBlockCount(5000);
     root->addWidget(m_log, 2);
-
     m_report = new QPlainTextEdit(central);
     m_report->setReadOnly(true);
     m_report->setPlaceholderText("The provisioning report appears here when the run finishes.");
-    root->addWidget(m_report, 2);
+    root->addWidget(m_report, 1);
 
     setCentralWidget(central);
 
+    connect(m_profileBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &MainWindow::onProfilePicked);
     connect(m_startBtn, &QPushButton::clicked, this, &MainWindow::onStart);
     connect(m_cancelBtn, &QPushButton::clicked, this, &MainWindow::onCancel);
+    connect(m_saveProfileBtn, &QPushButton::clicked, this, &MainWindow::onSaveAsProfile);
     connect(m_saveReportBtn, &QPushButton::clicked, this, &MainWindow::onSaveReport);
     connect(&m_engine, &EngineController::logEvent, this, &MainWindow::onLogEvent);
     connect(&m_engine, &EngineController::stageChanged, this, &MainWindow::onStageChanged);
     connect(&m_engine, &EngineController::progress, this, &MainWindow::onProgress);
     connect(&m_engine, &EngineController::finished, this, &MainWindow::onFinished);
+
+    populateProfiles();
+    onProfilePicked(m_profileBox->currentIndex());
 }
 
 void MainWindow::populateProfiles() {
+    m_profileBox->blockSignals(true);
     m_profileBox->clear();
+    m_profileBox->addItem("(custom — start from blank)", QString());
     const QString exeDir = QCoreApplication::applicationDirPath();
     for (const QString& d : {exeDir + "/profiles", exeDir + "/../profiles",
                              exeDir + "/../../profiles"}) {
         QDir dir(d);
         if (!dir.exists()) continue;
-        for (const QFileInfo& fi : dir.entryInfoList({"*.json"}, QDir::Files, QDir::Name)) {
+        for (const QFileInfo& fi : dir.entryInfoList({"*.json"}, QDir::Files, QDir::Name))
             m_profileBox->addItem(fi.completeBaseName(), fi.absoluteFilePath());
-        }
-        if (m_profileBox->count() > 0) break;
+        if (m_profileBox->count() > 1) break;
     }
-    if (m_profileBox->count() == 0) m_profileBox->addItem("(no profiles found)", QString());
+    m_profileBox->blockSignals(false);
+}
+
+void MainWindow::onProfilePicked(int index) {
+    const QString path = m_profileBox->itemData(index).toString();
+    if (path.isEmpty()) {
+        m_tabs->seed(blankProfile());
+        return;
+    }
+    auto loaded = profiles::ProfileLoader::load(path.toStdString());
+    if (std::holds_alternative<profiles::Profile>(loaded)) {
+        m_tabs->seed(std::get<profiles::Profile>(loaded));
+    } else {
+        m_currentTask->setText("Profile error: " +
+            QString::fromStdString(std::get<profiles::ProfileLoadError>(loaded).message));
+        m_tabs->seed(blankProfile());
+    }
 }
 
 void MainWindow::setRunning(bool running) {
@@ -142,8 +179,8 @@ void MainWindow::setRunning(bool running) {
     m_cancelBtn->setEnabled(running);
     m_profileBox->setEnabled(!running);
     m_dryRunBox->setEnabled(!running);
-    m_skipDriversBox->setEnabled(!running);
-    m_skipAppsBox->setEnabled(!running);
+    m_saveProfileBtn->setEnabled(!running);
+    m_tabs->setEnabledForRun(!running);
 }
 
 void MainWindow::onStart() {
@@ -153,12 +190,12 @@ void MainWindow::onStart() {
     m_appBar->setValue(0);
     m_saveReportBtn->setEnabled(false);
 
-    core::provisioning::ProvisioningOptions o;
-    const QString profilePath = m_profileBox->currentData().toString();
-    if (!profilePath.isEmpty()) o.profile = profilePath.toStdString();
+    provisioning::ProvisioningOptions o;
+    o.profileObject = m_tabs->effectiveProfile();
+    o.profile = o.profileObject->name;
     o.dryRun = m_dryRunBox->isChecked();
-    o.skipDrivers = m_skipDriversBox->isChecked();
-    o.skipApps = m_skipAppsBox->isChecked() || profilePath.isEmpty();
+    o.skipDrivers = !o.profileObject->drivers.enabled;
+    o.skipApps = o.profileObject->enabledApps().empty();
 
     setRunning(true);
     m_currentTask->setText("Starting…");
@@ -170,17 +207,36 @@ void MainWindow::onCancel() {
     m_engine.requestCancel();
 }
 
+void MainWindow::onSaveAsProfile() {
+    const auto p = m_tabs->effectiveProfile();
+    QString name = QFileInfo(QFileDialog::getSaveFileName(
+                                 this, "Save as profile",
+                                 QString::fromStdString(p.name) + ".json",
+                                 "Profile (*.json)"))
+                       .absoluteFilePath();
+    if (name.isEmpty()) return;
+    if (!name.endsWith(".json")) name += ".json";
+
+    // name must match the file stem
+    profiles::Profile toSave = p;
+    toSave.name = QFileInfo(name).completeBaseName().toStdString();
+
+    QFile f(name);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        f.write(QJsonDocument(toSave.toJson()).toJson(QJsonDocument::Indented));
+        m_currentTask->setText("Saved profile: " + name);
+    }
+}
+
 void MainWindow::onLogEvent(QString isoTime, int severity, QString category, QString message,
-                            int progress) {
-    Q_UNUSED(progress);
+                            int) {
     const QString ts = isoTime.mid(11, 8);
-    auto* c = m_log;
     QTextCharFormat fmt;
     fmt.setForeground(severityColor(severity));
-    QTextCursor cur = c->textCursor();
+    QTextCursor cur = m_log->textCursor();
     cur.movePosition(QTextCursor::End);
     cur.insertText(QString("[%1] %2  %3\n").arg(ts, category, message), fmt);
-    c->setTextCursor(cur);
+    m_log->setTextCursor(cur);
     m_currentTask->setText(message);
 }
 
@@ -206,16 +262,15 @@ void MainWindow::onFinished(QString status, QString reportText, QString runDir) 
 void MainWindow::onSaveReport() {
     if (m_lastReportRunDir.isEmpty()) return;
     const QString src = QDir(m_lastReportRunDir).filePath("run.json");
-    const QString dst = QFileDialog::getSaveFileName(this, "Save report", "report.json",
-                                                     "JSON (*.json)");
+    const QString dst =
+        QFileDialog::getSaveFileName(this, "Save report", "report.json", "JSON (*.json)");
     if (dst.isEmpty()) return;
     QFile in(src);
     if (!in.open(QIODevice::ReadOnly)) return;
     const QJsonObject run = QJsonDocument::fromJson(in.readAll()).object();
     QFile out(dst);
-    if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    if (out.open(QIODevice::WriteOnly | QIODevice::Truncate))
         out.write(QJsonDocument(run.value("report").toObject()).toJson(QJsonDocument::Indented));
-    }
 }
 
 } // namespace shiftech::gui

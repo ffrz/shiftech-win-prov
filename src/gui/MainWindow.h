@@ -12,16 +12,20 @@ class QPushButton;
 
 namespace shiftech::gui {
 
-// Pure front-end over EngineController. No pipeline logic here — the window builds a
-// ProvisioningOptions from the controls, starts the engine, and renders its signals.
+class ChecklistTabs;
+
+// Pure front-end over EngineController. The three checklist tabs build an effective
+// Profile; the window hands it to the engine and renders the event signals.
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget* parent = nullptr);
 
 private slots:
+    void onProfilePicked(int index);
     void onStart();
     void onCancel();
+    void onSaveAsProfile();
     void onLogEvent(QString isoTime, int severity, QString category, QString message, int progress);
     void onStageChanged(QString stage);
     void onProgress(QString stage, int percent);
@@ -36,14 +40,14 @@ private:
 
     QLabel* m_systemLabel = nullptr;
     QComboBox* m_profileBox = nullptr;
+    ChecklistTabs* m_tabs = nullptr;
     QCheckBox* m_dryRunBox = nullptr;
-    QCheckBox* m_skipDriversBox = nullptr;
-    QCheckBox* m_skipAppsBox = nullptr;
     QProgressBar* m_driverBar = nullptr;
     QProgressBar* m_appBar = nullptr;
     QLabel* m_currentTask = nullptr;
     QPushButton* m_startBtn = nullptr;
     QPushButton* m_cancelBtn = nullptr;
+    QPushButton* m_saveProfileBtn = nullptr;
     QPushButton* m_saveReportBtn = nullptr;
     QPlainTextEdit* m_log = nullptr;
     QPlainTextEdit* m_report = nullptr;
