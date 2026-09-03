@@ -1,19 +1,22 @@
 #pragma once
 
 #include "DriverProvider.h"
+#include <string>
 
 namespace shiftech::core::drivers {
 
 // Resolves drivers via the Windows Update Agent (COM IUpdateSearcher,
 // "IsInstalled=0 and Type='Driver'"). Microsoft-hosted, WHQL-signed.
 //
-// STUB (Milestone 3): compiles, always returns found=false with a clear reason, so the
-// provider chain is exercised. Real implementation lands in a Milestone 3.5 / 4 follow-up
-// (see docs/DRIVER_PROVIDER.md "WindowsUpdateProvider").
+// - Online mode (default): searches Windows Update directly.
+// - Offline mode: if `scanPackagePath` (a wsusscn2.cab) is given, or
+//   <exeDir>/cache/wsusscn2.cab exists, the search is done against that package
+//   (air-gapped machines).
+//
+// A COM failure / timeout returns found=false with a reason — never throws.
 class WindowsUpdateProvider : public DriverProvider {
 public:
-    // scanPackagePath: optional wsusscn2.cab for offline / air-gapped scans.
-    explicit WindowsUpdateProvider(std::string scanPackagePath = {});
+    explicit WindowsUpdateProvider(std::string scanPackagePath = {}, int timeoutMs = 90000);
 
     DriverSearchResult search(const hardware::Device& device,
                               const TargetSystem& target) override;
@@ -21,6 +24,7 @@ public:
 
 private:
     std::string m_scanPackagePath;
+    int m_timeoutMs;
 };
 
 } // namespace shiftech::core::drivers
