@@ -30,3 +30,8 @@ desktop.ini
 
 # Portable release staging
 /dist/
+
+# Local app installers live on the USB drive, not in git (manifests are kept)
+/apps/**/*.exe
+/apps/**/*.msi
+

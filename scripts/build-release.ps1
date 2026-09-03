@@ -128,8 +128,12 @@ foreach ($exe in $exes) {
     if ($LASTEXITCODE -ne 0) { throw "windeployqt failed for $exe ($LASTEXITCODE)" }
 }
 
-# profiles + empty runtime dirs
+# profiles + app manifests + empty runtime dirs
 Copy-Item (Join-Path $RepoRoot 'profiles') -Destination $StageDir -Recurse
+if (Test-Path (Join-Path $RepoRoot 'apps')) {
+    Copy-Item (Join-Path $RepoRoot 'apps') -Destination $StageDir -Recurse
+    # keep only manifests + README in the staged copy; installers are added on the USB drive
+}
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'cache')  | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'logs')   | Out-Null
 New-Item -ItemType File -Force -Path (Join-Path $StageDir 'cache\.keep') | Out-Null
@@ -150,8 +154,14 @@ GUI (Windows 10/11 only - see ADR-0003):
 
   shiftech_gui.exe
 
-Everything is relative to this folder: cache\, logs\, profiles\.
-Driver install and a real provisioning run require running elevated (Run as administrator).
+Local app installers: put the .exe/.msi next to its app.json in apps\<id>\
+(e.g. apps\winrar\winrar-x64-701.exe). Profiles reference them by folder id.
+
+Config tweaks available:  provisioner.exe config list
+
+Everything is relative to this folder: cache\, logs\, profiles\, apps\.
+Driver install, config tweaks and a real provisioning run require running elevated
+(Run as administrator).
 "@ | Set-Content -Encoding UTF8 (Join-Path $StageDir 'README-PORTABLE.txt')
 
 Write-Host ""

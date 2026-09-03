@@ -1,0 +1,10 @@
+{
+  "name": "Adobe Acrobat Reader",
+  "installer": "AcroRdrDCx64.exe",
+  "silentArgs": ["/sAll", "/rs", "/msi", "EULA_ACCEPT=YES"],
+  "detect": {
+    "type": "arp",
+    "name": "Adobe Acrobat"
+  },
+  "expectedExitCodes": [0, 3010]
+}

@@ -1,15 +1,25 @@
 {
   "name": "technician",
-  "description": "Technician diagnostic and support toolkit",
+  "description": "Technician diagnostic and support workstation",
+
+  "drivers": {
+    "enabled": true,
+    "providerOrder": "localcache,windowsupdate,mirror"
+  },
+
   "applications": [
-    { "id": "7zip.7zip", "required": true },
-    { "id": "Google.Chrome", "required": true },
-    { "id": "CPUID.CPU-Z", "required": false },
-    { "id": "CPUID.HWMonitor", "required": false },
-    { "id": "CrystalDewWorld.CrystalDiskInfo", "required": false },
-    { "id": "CrystalDewWorld.CrystalDiskMark", "required": false },
-    { "id": "TechPowerUp.GPU-Z", "required": false },
-    { "id": "Microsoft.Sysinternals.Suite", "required": false },
-    { "id": "WinDirStat.WinDirStat", "required": false }
+    { "id": "7zip",         "source": "winget", "wingetId": "7zip.7zip",                    "enabled": true,  "required": true },
+    { "id": "chrome",       "source": "winget", "wingetId": "Google.Chrome",                "enabled": true,  "required": true },
+    { "id": "cpuz",         "source": "winget", "wingetId": "CPUID.CPU-Z",                  "enabled": true,  "required": false },
+    { "id": "hwmonitor",    "source": "winget", "wingetId": "CPUID.HWMonitor",              "enabled": true,  "required": false },
+    { "id": "crystaldisk",  "source": "winget", "wingetId": "CrystalDewWorld.CrystalDiskInfo", "enabled": true, "required": false },
+    { "id": "sysinternals", "source": "winget", "wingetId": "Microsoft.Sysinternals.Suite", "enabled": false, "required": false }
+  ],
+
+  "config": [
+    { "id": "set-power-high-performance", "enabled": true },
+    { "id": "show-file-extensions",       "enabled": true },
+    { "id": "show-hidden-files",          "enabled": true },
+    { "id": "enable-rdp",                 "enabled": true }
   ]
 }

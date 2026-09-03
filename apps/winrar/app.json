@@ -1,0 +1,10 @@
+{
+  "name": "WinRAR",
+  "installer": "winrar-x64-701.exe",
+  "silentArgs": ["/S"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\WinRAR", "HKLM\\SOFTWARE\\WOW6432Node\\WinRAR"]
+  },
+  "expectedExitCodes": [0]
+}

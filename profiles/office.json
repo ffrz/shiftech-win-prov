@@ -1,13 +1,26 @@
 {
   "name": "office",
   "description": "Office / administrative workstation",
+
+  "drivers": {
+    "enabled": true,
+    "providerOrder": "localcache,windowsupdate,mirror"
+  },
+
   "applications": [
-    { "id": "Google.Chrome", "required": true },
-    { "id": "7zip.7zip", "required": true },
-    { "id": "SumatraPDF.SumatraPDF", "required": true },
-    { "id": "Microsoft.Office", "required": false },
-    { "id": "LibreOffice.LibreOffice", "required": false },
-    { "id": "Zoom.Zoom", "required": false },
-    { "id": "Microsoft.PowerToys", "required": false }
+    { "id": "chrome",       "source": "winget", "wingetId": "Google.Chrome",        "enabled": true,  "required": true },
+    { "id": "7zip",         "source": "winget", "wingetId": "7zip.7zip",             "enabled": true,  "required": true },
+    { "id": "winrar",       "source": "local",                                      "enabled": true,  "required": false },
+    { "id": "adobe-reader", "source": "local",                                      "enabled": true,  "required": false },
+    { "id": "office",       "source": "winget", "wingetId": "Microsoft.Office",      "enabled": false, "required": false },
+    { "id": "libreoffice",  "source": "winget", "wingetId": "TheDocumentFoundation.LibreOffice", "enabled": false, "required": false },
+    { "id": "zoom",         "source": "winget", "wingetId": "Zoom.Zoom",             "enabled": false, "required": false }
+  ],
+
+  "config": [
+    { "id": "disable-password-expiry", "enabled": true },
+    { "id": "clean-taskbar-pins",      "enabled": true },
+    { "id": "show-file-extensions",    "enabled": true },
+    { "id": "set-timezone",            "enabled": false, "args": { "id": "SE Asia Standard Time" } }
   ]
 }
