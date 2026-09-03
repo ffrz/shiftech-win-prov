@@ -15,13 +15,12 @@ Default kit Qt 6.6.2 + MinGW 11.2.0; Qt 6.11.1 + GCC 13.1 available as an altern
 Windows 7/8 support for a Qt 6 GUI is at risk — see ADR-0003.
 
 ## ADR-0002 — Profile file format: JSON now, YAML pending
-**Status:** proposed
+**Status:** accepted (JSON-only)
 **Context:** Spec shows YAML profiles. Qt has no bundled YAML parser; adding one is a
 dependency.
-**Decision (interim):** `ProfileLoader` loads `.json`. Ship `.yaml` as human-readable
-references with `.json` twins kept in sync. Revisit adding a single-header YAML parser
-(or a tiny subset parser) before Milestone 5 ships.
-**Consequences:** Two files per profile until resolved. Decide and supersede this ADR.
+**Decision:** `ProfileLoader` loads `.json`. We will forgo YAML entirely for V1 to keep
+the executable self-contained without adding vendored YAML parsing dependencies.
+**Consequences:** Profiles must be authored in JSON.
 
 ## ADR-0003 — Windows 7/8 support for a Qt 6 GUI (OPEN RISK)
 **Status:** proposed

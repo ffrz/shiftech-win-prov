@@ -3,6 +3,7 @@
 #include <QTextStream>
 #include "commands/ScanCommand.h"
 #include "commands/DriversScanCommand.h"
+#include "commands/AppsInstallCommand.h"
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
@@ -58,6 +59,23 @@ int main(int argc, char *argv[]) {
         } else {
             QTextStream out(stdout);
             out << "Unknown drivers subcommand: " << subcommand << "\n";
+            return 3;
+        }
+    } else if (command == "apps") {
+        if (args.size() < 2) {
+            QTextStream out(stdout);
+            out << "Missing subcommand for apps.\n";
+            return 3;
+        }
+        QString subcommand = args[1];
+        if (subcommand == "install") {
+            shiftech::cli::commands::AppsInstallCommand cmd;
+            std::vector<std::string> stdArgs;
+            for (const QString& a : args.mid(2)) { stdArgs.push_back(a.toStdString()); }
+            return cmd.execute(stdArgs);
+        } else {
+            QTextStream out(stdout);
+            out << "Unknown apps subcommand: " << subcommand << "\n";
             return 3;
         }
     } else {

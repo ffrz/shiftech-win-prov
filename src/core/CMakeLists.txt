@@ -1,11 +1,13 @@
 add_library(shiftech_core STATIC 
+    system/SystemInspector.cpp
     hardware/Device.cpp
     hardware/HardwareId.cpp
     hardware/DeviceEnumerator.cpp
-    system/SystemInspector.cpp
     drivers/TargetSystem.cpp
     drivers/DriverMatch.cpp
     drivers/MockDriverProvider.cpp
+    profiles/ProfileLoader.cpp
+    applications/WinGetProvider.cpp
 )
 
 target_include_directories(shiftech_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
