@@ -67,10 +67,17 @@ DriverSearchResult MockDriverProvider::search(const hardware::Device& device, co
     }
 
     QByteArray val = file.readAll();
-    QJsonDocument doc = QJsonDocument::fromJson(val);
+    QJsonParseError perr{};
+    QJsonDocument doc = QJsonDocument::fromJson(val, &perr);
+    if (perr.error != QJsonParseError::NoError) {
+        result.found = false;
+        result.notFoundReason =
+            "mock index JSON parse error: " + perr.errorString().toStdString();
+        return result;
+    }
     if (!doc.isObject()) {
         result.found = false;
-        result.notFoundReason = "Invalid JSON in mock index";
+        result.notFoundReason = "mock index root is not a JSON object";
         return result;
     }
 
