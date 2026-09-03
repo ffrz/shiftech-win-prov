@@ -17,6 +17,7 @@ struct ProvisioningOptions {
     std::string providerOrder;        // driver provider chain spec ("" => default)
     QString cacheDir;                 // "" => portable default
     QString profilesDir;              // "" => exe-relative default
+    QString appsDir;                  // "" => <exeDir>/apps  (local installers)
     QString logDir;                   // "" => <exeDir>/logs
     QString mockDriverIndex;          // for --provider-order mock
     std::string mirrorUrl;

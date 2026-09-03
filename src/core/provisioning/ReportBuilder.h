@@ -27,6 +27,11 @@ struct Report {
     int appsFailed = 0;
     int appsFailedRequired = 0;
     int appsSkipped = 0;
+    // Config tweaks
+    int configApplied = 0;
+    int configAlreadyApplied = 0;
+    int configFailed = 0;
+    int configSkipped = 0;
     // Overall
     bool rebootRequired = false;
     int64_t durationMs = 0;

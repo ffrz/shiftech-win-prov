@@ -35,13 +35,21 @@ Report buildReport(const ProvisioningState& st) {
         else if (a.status == "failed") { ++r.appsFailed; if (a.required) ++r.appsFailedRequired; }
         else if (a.status == "skipped" || a.status == "skipped_no_winget") ++r.appsSkipped;
     }
+    for (const auto& c : st.configTweaks) {
+        if (c.outcome == "Applied") ++r.configApplied;
+        else if (c.outcome == "RequiresReboot") { ++r.configApplied; r.rebootRequired = true; }
+        else if (c.outcome == "AlreadyApplied") ++r.configAlreadyApplied;
+        else if (c.outcome == "Failed") ++r.configFailed;
+        else if (c.outcome == "Skipped") ++r.configSkipped;
+    }
 
     if (st.finishedAtMs > st.startedAtMs) r.durationMs = st.finishedAtMs - st.startedAtMs;
 
     if (st.stage == Stage::Failed || !st.fatalError.empty()) {
         r.status = RunStatus::Failed;
     } else if (r.driversNotFound || r.driversFailed || r.driversSkipped ||
-               r.appsFailed || r.appsSkipped || r.rebootRequired) {
+               r.appsFailed || r.appsSkipped || r.configFailed || r.configSkipped ||
+               r.rebootRequired) {
         r.status = RunStatus::SuccessWithWarnings;
     } else {
         r.status = RunStatus::Success;
@@ -78,6 +86,14 @@ std::string Report::toText() const {
     o << "\n";
     o << "Skipped: " << appsSkipped << "\n\n";
 
+    if (configApplied || configAlreadyApplied || configFailed || configSkipped) {
+        o << "Config\n------\n";
+        o << "Applied: " << configApplied << "\n";
+        o << "Already applied: " << configAlreadyApplied << "\n";
+        o << "Failed: " << configFailed << "\n";
+        o << "Skipped: " << configSkipped << "\n\n";
+    }
+
     o << "Reboot required: " << (rebootRequired ? "YES" : "NO") << "\n\n";
     o << "Duration: " << (secs / 60) << "m " << (secs % 60) << "s\n\n";
     o << "Status: " << toString(status) << "\n";
@@ -104,10 +120,17 @@ QJsonObject Report::toJson() const {
     a["failedRequired"] = appsFailedRequired;
     a["skipped"] = appsSkipped;
 
+    QJsonObject c;
+    c["applied"] = configApplied;
+    c["alreadyApplied"] = configAlreadyApplied;
+    c["failed"] = configFailed;
+    c["skipped"] = configSkipped;
+
     QJsonObject o;
     o["hardware"] = h;
     o["drivers"] = d;
     o["applications"] = a;
+    o["config"] = c;
     o["rebootRequired"] = rebootRequired;
     o["durationMs"] = static_cast<double>(durationMs);
     o["status"] = toString(status);

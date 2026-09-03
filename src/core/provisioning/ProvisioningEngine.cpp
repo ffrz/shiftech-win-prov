@@ -1,6 +1,8 @@
 #include "ProvisioningEngine.h"
 
+#include "../applications/LocalInstallerProvider.h"
 #include "../applications/WinGetProvider.h"
+#include "../config/ConfigTweak.h"
 #include "../drivers/DriverCache.h"
 #include "../drivers/DriverDownloader.h"
 #include "../drivers/DriverInstaller.h"
@@ -113,10 +115,45 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     if (sys.arch == system::Arch::Unsupported) {
         return fail("unsupported architecture (ARM or unknown)");
     }
-    const bool doDrivers = !opts.skipDrivers;
-    const bool doApps = !opts.skipApps && !opts.profile.empty();
-    if (doDrivers && !opts.dryRun && !sys.elevated) {
-        return fail("driver installation requires Administrator; re-run elevated or use --dry-run");
+
+    // ---- Load the profile once; it drives all three sections ----
+    profiles::Profile profile;
+    bool haveProfile = false;
+    if (!opts.profile.empty()) {
+        const QString profilePath = [&]() -> QString {
+            const QString name = QString::fromStdString(opts.profile);
+            if (QFileInfo(name).isAbsolute() && name.endsWith(".json")) return name;
+            const QString exeDir = QCoreApplication::applicationDirPath();
+            QStringList dirs;
+            if (!opts.profilesDir.isEmpty()) dirs << opts.profilesDir;
+            else dirs << exeDir + "/profiles" << exeDir + "/../profiles"
+                      << exeDir + "/../../profiles";
+            for (const QString& d : dirs) {
+                const QString c = QDir(d).filePath(name + ".json");
+                if (QFileInfo::exists(c)) return c;
+            }
+            return {};
+        }();
+        if (profilePath.isEmpty()) return fail("profile '" + opts.profile + "' not found");
+        auto loaded = profiles::ProfileLoader::load(profilePath.toStdString());
+        if (std::holds_alternative<profiles::ProfileLoadError>(loaded))
+            return fail("profile: " + std::get<profiles::ProfileLoadError>(loaded).message);
+        profile = std::get<profiles::Profile>(loaded);
+        haveProfile = true;
+    }
+
+    const bool doDrivers = !opts.skipDrivers &&
+                           (!haveProfile || profile.drivers.enabled);
+    const bool doApps = !opts.skipApps && haveProfile && !profile.enabledApps().empty();
+    const bool doConfig = haveProfile && !profile.enabledConfig().empty();
+
+    // Provider order: CLI flag wins, else the profile's, else engine default.
+    std::string providerOrder = opts.providerOrder;
+    if (providerOrder.empty() && haveProfile) providerOrder = profile.drivers.providerOrder;
+
+    if ((doDrivers || doConfig) && !opts.dryRun && !sys.elevated) {
+        return fail("driver install / config tweaks require Administrator; "
+                    "re-run elevated or use --dry-run");
     }
 
     // ---- Hardware Scan ----
@@ -126,8 +163,25 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     if (allDevices.empty()) {
         return fail("device enumeration returned nothing");
     }
+    // Apply the profile's driver exclude list (hardware IDs or instance IDs).
+    auto isExcluded = [&](const hardware::Device& d) {
+        if (!haveProfile) return false;
+        for (const auto& ex : profile.drivers.exclude) {
+            if (d.instanceId == ex) return true;
+            for (const auto& h : d.hardwareIds) if (h == ex) return true;
+            for (const auto& c : d.compatibleIds) if (c == ex) return true;
+        }
+        return false;
+    };
     std::vector<hardware::Device> needing;
-    for (const auto& d : allDevices) if (d.needsDriver()) needing.push_back(d);
+    for (const auto& d : allDevices) {
+        if (!d.needsDriver()) continue;
+        if (isExcluded(d)) {
+            st.drivers.push_back({d.instanceId, d.name, "Skipped", "excluded by profile"});
+            continue;
+        }
+        needing.push_back(d);
+    }
     st.devicesDetected = static_cast<int>(allDevices.size());
     st.devicesNeedingDriver = static_cast<int>(needing.size());
     ev("hardware", Severity::Info,
@@ -147,7 +201,7 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         fo.mirrorUrl = opts.mirrorUrl;
         fo.mockIndexPath = opts.mockDriverIndex;
         std::string cerr;
-        auto chainOpt = drivers::buildProviderChain(opts.providerOrder, fo, cerr);
+        auto chainOpt = drivers::buildProviderChain(providerOrder, fo, cerr);
         if (!chainOpt) return fail("driver provider chain: " + cerr);
         drivers::ProviderChain chain = std::move(*chainOpt);
 
@@ -207,10 +261,15 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             for (const auto& inf : drivers::PackageExtractor::findInfFiles(ex.extractedDir)) {
                 const auto v = drivers::validateInf(inf);
                 if (v.verdict == drivers::InfVerdict::Reject) continue;
-                if (v.verdict == drivers::InfVerdict::Warn && !v.hasCatalog) {
+                const bool allowUnsigned = haveProfile && profile.drivers.installUnsigned;
+                if (v.verdict == drivers::InfVerdict::Warn && !v.hasCatalog && !allowUnsigned) {
                     ev("driver", Severity::Warning,
                        p.dev.name + ": skipping unsigned INF (ADR-0006)");
                     continue;
+                }
+                if (v.verdict == drivers::InfVerdict::Warn && !v.hasCatalog) {
+                    ev("driver", Severity::Warning,
+                       p.dev.name + ": installing UNSIGNED INF (installUnsigned=true)");
                 }
                 infsToInstall.push_back(inf);
                 ++accepted;
@@ -273,69 +332,96 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     }
 
     // ---- Application stages ----
+    tick(Stage::AppDetection);
     if (doApps) {
-        tick(Stage::AppDetection);
-        const QString profilePath = [&]() -> QString {
-            const QString name = QString::fromStdString(opts.profile);
-            if (QFileInfo(name).isAbsolute() && name.endsWith(".json")) return name;
-            const QString exeDir = QCoreApplication::applicationDirPath();
-            QStringList dirs;
-            if (!opts.profilesDir.isEmpty()) dirs << opts.profilesDir;
-            else dirs << exeDir + "/profiles" << exeDir + "/../profiles"
-                      << exeDir + "/../../profiles";
-            for (const QString& d : dirs) {
-                const QString c = QDir(d).filePath(name + ".json");
-                if (QFileInfo::exists(c)) return c;
-            }
-            return {};
-        }();
-        if (profilePath.isEmpty()) {
-            return fail("profile '" + opts.profile + "' not found");
-        }
-        auto loaded = profiles::ProfileLoader::load(profilePath.toStdString());
-        if (std::holds_alternative<profiles::ProfileLoadError>(loaded)) {
-            return fail("profile: " +
-                        std::get<profiles::ProfileLoadError>(loaded).message);
-        }
-        const auto profile = std::get<profiles::Profile>(loaded);
+        const auto apps = profile.enabledApps();
         applications::WinGetProvider winget;
+        applications::LocalInstallerProvider local(opts.appsDir);
         const bool wingetOk = winget.isAvailable();
-        ev("application", wingetOk ? Severity::Info : Severity::Warning,
-           wingetOk ? ("profile '" + profile.name + "': " +
-                       std::to_string(profile.applications.size()) + " apps")
-                    : "winget unavailable — all apps will be skipped");
+
+        ev("application", Severity::Info,
+           "profile '" + profile.name + "': " + std::to_string(apps.size()) +
+               " app(s) selected" + (wingetOk ? "" : " (winget unavailable)"));
 
         tick(Stage::AppInstall);
         int i = 0;
-        for (const auto& app : profile.applications) {
+        for (const auto& app : apps) {
             if (cancelled()) return finishEarly("during application install");
-            const int prog = ++i * 100 / std::max<int>(1, (int)profile.applications.size());
+            const int prog = ++i * 100 / std::max<int>(1, (int)apps.size());
+            const bool isLocal = app.source == profiles::AppSource::Local;
+            applications::ApplicationProvider& prov =
+                isLocal ? static_cast<applications::ApplicationProvider&>(local)
+                        : static_cast<applications::ApplicationProvider&>(winget);
+            const std::string key = isLocal ? app.id : app.wingetId;
+
             AppItemResult ar;
             ar.id = app.id;
             ar.required = app.required;
-            if (!wingetOk) {
+
+            if (!isLocal && !wingetOk) {
                 ar.status = "skipped_no_winget";
                 ev("application", Severity::Warning, app.id + ": skipped (no winget)", prog);
-            } else if (winget.isInstalled(app.id)) {
+            } else if (prov.isInstalled(key)) {
                 ar.status = "already_installed";
                 ev("application", Severity::Info, app.id + ": already installed", prog);
             } else if (opts.dryRun) {
                 ar.status = "would_install";
-                ev("application", Severity::Info, app.id + ": would install", prog);
+                ev("application", Severity::Info,
+                   app.id + ": would install via " + (isLocal ? "local installer" : "winget"),
+                   prog);
             } else {
-                const auto r = winget.install(app.id, {});
+                const auto r = prov.install(key, {});
                 ar.status = r.ok ? "installed" : "failed";
                 ar.exitCode = r.exitCode;
                 ev("application", r.ok ? Severity::Success : Severity::Warning,
-                   app.id + (r.ok ? ": installed" : ": FAILED"), prog);
+                   app.id + (r.ok ? ": installed" : ": FAILED — " + r.log), prog);
             }
             st.apps.push_back(ar);
         }
     } else {
-        tick(Stage::AppDetection);
         tick(Stage::AppInstall);
         ev("application", Severity::Info,
-           opts.profile.empty() ? "no profile given — apps skipped" : "apps skipped");
+           !haveProfile ? "no profile — apps skipped"
+                        : (opts.skipApps ? "apps skipped (--skip-apps)"
+                                         : "no apps enabled in profile"));
+    }
+
+    // ---- Config tweaks ----
+    if (doConfig) {
+        const auto tweaks = profile.enabledConfig();
+        ev("config", Severity::Info,
+           "profile '" + profile.name + "': " + std::to_string(tweaks.size()) +
+               " tweak(s) selected");
+        int i = 0;
+        for (const auto& t : tweaks) {
+            if (cancelled()) return finishEarly("during config tweaks");
+            const int prog = ++i * 100 / std::max<int>(1, (int)tweaks.size());
+            config::TweakArgs ta;
+            ta.values = t.args;
+
+            ConfigItemResult cr;
+            cr.id = t.id;
+            if (opts.dryRun) {
+                cr.outcome = "WouldApply";
+                ev("config", Severity::Info, t.id + ": would apply", prog);
+            } else {
+                const auto res = config::runTweak(t.id, ta, sys.elevated);
+                cr.outcome = config::toString(res.outcome);
+                cr.detail = res.detail;
+                if (res.outcome == config::TweakOutcome::RequiresReboot)
+                    st.rebootRequired = true;
+                Severity sev = (res.outcome == config::TweakOutcome::Failed)
+                                   ? Severity::Warning
+                                   : (res.outcome == config::TweakOutcome::Applied ||
+                                      res.outcome == config::TweakOutcome::RequiresReboot)
+                                         ? Severity::Success
+                                         : Severity::Info;
+                ev("config", sev, t.id + ": " + cr.outcome, prog);
+            }
+            st.configTweaks.push_back(cr);
+        }
+    } else if (haveProfile) {
+        ev("config", Severity::Info, "no config tweaks enabled in profile");
     }
 
     // ---- Final Verify + Report ----

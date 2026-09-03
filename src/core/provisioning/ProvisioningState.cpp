@@ -87,6 +87,16 @@ QJsonObject ProvisioningState::toJson() const {
     }
     o["apps"] = ap;
 
+    QJsonArray cfg;
+    for (const auto& c : configTweaks) {
+        QJsonObject e;
+        e["id"] = QString::fromStdString(c.id);
+        e["outcome"] = QString::fromStdString(c.outcome);
+        e["detail"] = QString::fromStdString(c.detail);
+        cfg.append(e);
+    }
+    o["configTweaks"] = cfg;
+
     o["startedAtMs"] = static_cast<double>(startedAtMs);
     o["finishedAtMs"] = static_cast<double>(finishedAtMs);
 
@@ -130,6 +140,12 @@ ProvisioningState ProvisioningState::fromJson(const QJsonObject& o) {
         a.status = e["status"].toString().toStdString();
         a.exitCode = e["exitCode"].toInt();
         s.apps.push_back(a);
+    }
+    for (const auto& v : o["configTweaks"].toArray()) {
+        const QJsonObject e = v.toObject();
+        s.configTweaks.push_back({e["id"].toString().toStdString(),
+                                  e["outcome"].toString().toStdString(),
+                                  e["detail"].toString().toStdString()});
     }
 
     s.startedAtMs = static_cast<int64_t>(o["startedAtMs"].toDouble());

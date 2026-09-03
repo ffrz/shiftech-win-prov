@@ -39,8 +39,14 @@ struct DriverItemResult {
 struct AppItemResult {
     std::string id;
     bool required = false;
-    std::string status;      // installed | already_installed | failed | skipped | would_install
+    std::string status;      // installed | already_installed | failed | skipped_no_winget | would_install
     int exitCode = 0;
+};
+
+struct ConfigItemResult {
+    std::string id;
+    std::string outcome;     // Applied | AlreadyApplied | Failed | Skipped | RequiresReboot | WouldApply
+    std::string detail;
 };
 
 // Serializable snapshot of a provisioning run. Persisted after every stage transition so a
@@ -62,9 +68,10 @@ struct ProvisioningState {
     int devicesDetected = 0;
     int devicesNeedingDriver = 0;
 
-    // driver / app per-item
+    // driver / app / config per-item
     std::vector<DriverItemResult> drivers;
     std::vector<AppItemResult> apps;
+    std::vector<ConfigItemResult> configTweaks;
 
     // timings (epoch ms)
     int64_t startedAtMs = 0;
