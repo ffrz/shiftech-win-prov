@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonDocument>
@@ -78,28 +79,40 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     m_dryRunBox = new QCheckBox("Dry run (no changes)", central);
     m_dryRunBox->setChecked(true);
     pRow->addWidget(m_dryRunBox);
-    m_saveProfileBtn = new QPushButton("Save as profile…", central);
-    pRow->addWidget(m_saveProfileBtn);
     root->addLayout(pRow);
+
+    auto* profHint = new QLabel(
+        "Pick a profile, then tick which drivers / apps / tweaks to run on this PC. "
+        "To add profiles or change their settings, edit the .json files in the profiles "
+        "folder.", central);
+    profHint->setWordWrap(true);
+    profHint->setStyleSheet("color: #666;");
+    root->addWidget(profHint);
 
     // Checklist tabs
     m_tabs = new ChecklistTabs(central);
     root->addWidget(m_tabs, 2);
 
-    // Progress
+    // Progress — aligned grid: right-justified labels, uniform-width bars.
     auto* progGroup = new QGroupBox("Progress", central);
-    auto* pg = new QVBoxLayout(progGroup);
-    auto rowFor = [&](const char* label, QProgressBar*& bar) {
-        auto* h = new QHBoxLayout;
-        h->addWidget(new QLabel(label));
-        bar = new QProgressBar;
-        h->addWidget(bar);
-        pg->addLayout(h);
+    auto* pg = new QGridLayout(progGroup);
+    pg->setColumnStretch(1, 1);
+    auto rowFor = [&](int row, const char* label, QProgressBar*& bar) {
+        auto* lbl = new QLabel(label, progGroup);
+        lbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        pg->addWidget(lbl, row, 0);
+        bar = new QProgressBar(progGroup);
+        bar->setRange(0, 100);
+        bar->setMinimumWidth(320);
+        pg->addWidget(bar, row, 1);
     };
-    rowFor("Drivers:", m_driverBar);
-    rowFor("Applications:", m_appBar);
+    rowFor(0, "Drivers:", m_driverBar);
+    rowFor(1, "Applications:", m_appBar);
+    auto* taskLbl = new QLabel("Current task:", progGroup);
+    taskLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    pg->addWidget(taskLbl, 2, 0);
     m_currentTask = new QLabel("Idle", progGroup);
-    pg->addWidget(m_currentTask);
+    pg->addWidget(m_currentTask, 2, 1);
     root->addWidget(progGroup);
 
     // Buttons
@@ -131,7 +144,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
             &MainWindow::onProfilePicked);
     connect(m_startBtn, &QPushButton::clicked, this, &MainWindow::onStart);
     connect(m_cancelBtn, &QPushButton::clicked, this, &MainWindow::onCancel);
-    connect(m_saveProfileBtn, &QPushButton::clicked, this, &MainWindow::onSaveAsProfile);
     connect(m_saveReportBtn, &QPushButton::clicked, this, &MainWindow::onSaveReport);
     connect(&m_engine, &EngineController::logEvent, this, &MainWindow::onLogEvent);
     connect(&m_engine, &EngineController::stageChanged, this, &MainWindow::onStageChanged);
@@ -179,7 +191,6 @@ void MainWindow::setRunning(bool running) {
     m_cancelBtn->setEnabled(running);
     m_profileBox->setEnabled(!running);
     m_dryRunBox->setEnabled(!running);
-    m_saveProfileBtn->setEnabled(!running);
     m_tabs->setEnabledForRun(!running);
 }
 
@@ -205,27 +216,6 @@ void MainWindow::onStart() {
 void MainWindow::onCancel() {
     m_currentTask->setText("Cancelling…");
     m_engine.requestCancel();
-}
-
-void MainWindow::onSaveAsProfile() {
-    const auto p = m_tabs->effectiveProfile();
-    QString name = QFileInfo(QFileDialog::getSaveFileName(
-                                 this, "Save as profile",
-                                 QString::fromStdString(p.name) + ".json",
-                                 "Profile (*.json)"))
-                       .absoluteFilePath();
-    if (name.isEmpty()) return;
-    if (!name.endsWith(".json")) name += ".json";
-
-    // name must match the file stem
-    profiles::Profile toSave = p;
-    toSave.name = QFileInfo(name).completeBaseName().toStdString();
-
-    QFile f(name);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        f.write(QJsonDocument(toSave.toJson()).toJson(QJsonDocument::Indented));
-        m_currentTask->setText("Saved profile: " + name);
-    }
 }
 
 void MainWindow::onLogEvent(QString isoTime, int severity, QString category, QString message,

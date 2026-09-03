@@ -41,30 +41,40 @@ private slots:
         a.source = AppSource::WinGet;
         a.wingetId = "Google.Chrome";
         a.enabled = true;
+        a.required = true;
         p.applications.push_back(a);
-        ConfigEntry c;
-        c.id = "show-file-extensions";
-        c.enabled = true;
-        p.config.push_back(c);
+        ConfigEntry c1;
+        c1.id = "show-file-extensions";
+        c1.enabled = true;
+        p.config.push_back(c1);
+        ConfigEntry c2;
+        c2.id = "clean-taskbar-pins";
+        c2.enabled = false;
+        p.config.push_back(c2);
 
         t.seed(p);
         const Profile eff = t.effectiveProfile();
 
-        // apps: at least the seeded one, checked
+        // apps: the seeded one, checked, required carried through from the profile
         bool sawChrome = false;
         for (const auto& e : eff.applications)
-            if (e.id == "chrome") { sawChrome = true; QVERIFY(e.enabled); }
+            if (e.id == "chrome") {
+                sawChrome = true;
+                QVERIFY(e.enabled);
+                QVERIFY(e.required);
+            }
         QVERIFY(sawChrome);
 
-        // config: show-file-extensions checked, some other catalog tweak unchecked
-        bool sawSFE = false, sawUnchecked = false;
+        // config: only the profile's two tweaks appear; enabled state preserved
+        QCOMPARE(eff.config.size(), size_t(2));
+        bool sfe = false, taskbar = false;
         for (const auto& e : eff.config) {
-            if (e.id == "show-file-extensions") { sawSFE = true; QVERIFY(e.enabled); }
-            else if (!e.enabled) sawUnchecked = true;
+            if (e.id == "show-file-extensions") { sfe = true; QVERIFY(e.enabled); }
+            if (e.id == "clean-taskbar-pins") { taskbar = true; QVERIFY(!e.enabled); }
         }
-        QVERIFY(sawSFE);
-        QVERIFY(sawUnchecked);
+        QVERIFY(sfe && taskbar);
 
+        // provider order is NOT editable in the GUI -> carried straight through
         QCOMPARE(eff.drivers.providerOrder.c_str(), "localcache");
     }
 

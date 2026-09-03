@@ -4,7 +4,7 @@
 #include <QWidget>
 
 class QCheckBox;
-class QComboBox;
+class QLabel;
 class QLineEdit;
 class QTableWidget;
 
@@ -33,19 +33,20 @@ private:
     void buildAppsTab();
     void buildConfigTab();
 
-    core::profiles::Profile m_seed;   // keeps name/description + rows we didn't surface
+    core::profiles::Profile m_seed;   // keeps name/description + the provider order (not
+                                      // editable in the GUI - set it in the profile JSON)
 
     // Drivers
     QCheckBox* m_driversEnabled = nullptr;
-    QLineEdit* m_providerOrder = nullptr;
+    QLabel* m_providerOrderLabel = nullptr;  // read-only display of the profile's chain
     QCheckBox* m_installUnsigned = nullptr;
-    QTableWidget* m_deviceTable = nullptr;   // device -> "resolve" checkbox (unchecked = exclude)
+    QTableWidget* m_deviceTable = nullptr;   // [install?] | device | hardware id  (read-only)
 
     // Applications
-    QTableWidget* m_appTable = nullptr;      // checkbox | id | source | required
+    QTableWidget* m_appTable = nullptr;      // [install?] | application | source  (read-only)
 
     // Config
-    QTableWidget* m_configTable = nullptr;   // checkbox | id | title | [admin] | args field
+    QTableWidget* m_configTable = nullptr;   // [apply?] | tweak  (read-only; args/admin in tooltip)
 };
 
 } // namespace shiftech::gui

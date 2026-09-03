@@ -25,7 +25,6 @@ private slots:
     void onProfilePicked(int index);
     void onStart();
     void onCancel();
-    void onSaveAsProfile();
     void onLogEvent(QString isoTime, int severity, QString category, QString message, int progress);
     void onStageChanged(QString stage);
     void onProgress(QString stage, int percent);
@@ -47,7 +46,6 @@ private:
     QLabel* m_currentTask = nullptr;
     QPushButton* m_startBtn = nullptr;
     QPushButton* m_cancelBtn = nullptr;
-    QPushButton* m_saveProfileBtn = nullptr;
     QPushButton* m_saveReportBtn = nullptr;
     QPlainTextEdit* m_log = nullptr;
     QPlainTextEdit* m_report = nullptr;
