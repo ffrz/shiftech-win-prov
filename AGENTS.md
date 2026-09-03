@@ -111,20 +111,24 @@ green; clean `-Wall -Wextra -Wpedantic -Werror` build (Qt 6.6.2 / MinGW 11.2.0 /
 | 1 | `SystemInspector`, `DeviceEnumerator`, `provisioner scan` |
 | 2 | `DriverProvider`, `MockDriverProvider`, HWID>CompatID ranking, `drivers scan` |
 | 3 | Portable `DriverCache` + `DriverDownloader`, `LocalCacheProvider`, provider chain, `drivers resolve` |
-| 3.5 | `WindowsUpdateProvider` / `MirrorProvider` — **still stubs**, see [docs/tasks/MILESTONE-3.5.md](docs/tasks/MILESTONE-3.5.md) |
+| 3.5 | `WindowsUpdateProvider` (COM `IUpdateSearcher`, verified live) + `MirrorProvider` (`index.json`) — **real** |
 | 4 | `PackageExtractor`, `InfValidator`, `DriverInstaller` (pnputil), `DriverVerifier`, `drivers install` |
 | 5 | `ProfileLoader` (JSON), `WinGetProvider`, `apps install` |
 | 6 | `ProvisioningEngine` + state machine + `StructuredLogger` + `ReportBuilder`, `provision` / `report` |
 | 7 | `shiftech_gui` (opt-in) — dashboard over the engine event stream |
 
 **Not done / deferred (all documented, none blocking):**
-- **Milestone 3.5** — real `WindowsUpdateProvider` (COM `IUpdateSearcher`) and
-  `MirrorProvider`. The chain works; these two entries return "not implemented yet".
+- **Offline `wsusscn2.cab` scanning** in `WindowsUpdateProvider` — needs
+  `IUpdateServiceManager` which MinGW's `wuapi.h` doesn't declare. `--wsus-scan` falls
+  through to an online search. Add by hand-declaring the interface if an air-gapped need
+  appears.
 - **Integration tests** that actually run `pnputil` / `winget install` — VM only, procedures
   written in the milestone task files.
 - **Windows 7/8** — ADR-0003: ship the CLI only there, GUI is Win10/11.
 - Resume-after-reboot **execution** (state is persisted; the engine doesn't consume it yet).
+- GUI backlog (not started): separate Pause button, self-elevation UAC prompt, log
+  category filter + auto-scroll toggle.
 
-If asked to continue: the highest-value next step is **Milestone 3.5**
-([docs/tasks/MILESTONE-3.5.md](docs/tasks/MILESTONE-3.5.md)) so real online driver
-resolution works. Then real integration testing on a VM.
+If asked to continue: real **integration testing on a Windows VM** (driver install +
+verify, winget install) is the main remaining validation gap. Then packaging for the
+portable USB workflow.
