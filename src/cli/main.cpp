@@ -1,88 +1,90 @@
 #include <QCoreApplication>
-#include <QCommandLineParser>
+#include <QStringList>
 #include <QTextStream>
 #include "commands/ScanCommand.h"
 #include "commands/DriversScanCommand.h"
 #include "commands/AppsInstallCommand.h"
 
-int main(int argc, char *argv[]) {
+namespace {
+
+void printUsage(QTextStream& out) {
+    out << "Shiftech Win Provisioner\n\n"
+        << "Usage:\n"
+        << "  provisioner scan [--json]\n"
+        << "  provisioner drivers scan [--json] [--provider <name>] [--driver-index <path>]\n"
+        << "  provisioner apps install --profile <name> [--dry-run] [--profiles-dir <dir>]\n"
+        << "\nGlobal:\n"
+        << "  --json        machine-readable output where supported\n"
+        << "  -h, --help    show this help\n";
+}
+
+// True if the raw arg list contains --json anywhere.
+bool hasJson(const QStringList& args) {
+    return args.contains("--json");
+}
+
+} // namespace
+
+int main(int argc, char* argv[]) {
     QCoreApplication app(argc, argv);
     app.setApplicationName("provisioner");
     app.setApplicationVersion("1.0");
 
-    QCommandLineParser parser;
-    parser.setApplicationDescription("Shiftech Win Provisioner");
-    parser.addHelpOption();
-    parser.addVersionOption();
+    QTextStream out(stdout);
 
-    QCommandLineOption jsonOption("json", "emit machine-readable JSON to stdout instead of human text");
-    parser.addOption(jsonOption);
+    // Raw args after the program name; we dispatch on the subcommand ourselves so
+    // each command owns its own option parsing (QCommandLineParser cannot forward
+    // unknown options to a subcommand).
+    QStringList args = app.arguments();
+    args.removeFirst();
 
-    QCommandLineOption noColorOption("no-color", "disable ANSI color");
-    parser.addOption(noColorOption);
-
-    QCommandLineOption verboseOption(QStringList() << "v" << "verbose", "debug-level console output");
-    parser.addOption(verboseOption);
-    
-    QCommandLineOption providerOption("provider", "Driver provider to use (mock)", "name", "mock");
-    parser.addOption(providerOption);
-    
-    QCommandLineOption driverIndexOption("driver-index", "Path to mock driver index", "path");
-    parser.addOption(driverIndexOption);
-
-    parser.addPositionalArgument("command", "Command to run (e.g. scan)");
-    parser.addPositionalArgument("subcommand", "Subcommand (e.g. scan for drivers command)");
-
-    parser.parse(app.arguments());
-
-    const QStringList args = parser.positionalArguments();
-    if (args.isEmpty()) {
-        parser.showHelp(3);
+    if (args.isEmpty() || args.first() == "-h" || args.first() == "--help") {
+        printUsage(out);
+        return args.isEmpty() ? 3 : 0;
     }
 
-    QString command = args.first();
-    bool json = parser.isSet(jsonOption);
+    const QString command = args.takeFirst();
 
     if (command == "scan") {
-        return shiftech::cli::commands::ScanCommand::run(json);
-    } else if (command == "drivers") {
-        if (args.size() < 2) {
-            QTextStream out(stdout);
-            out << "Missing subcommand for drivers.\n";
-            return 3;
-        }
-        QString subcommand = args[1];
-        if (subcommand == "scan") {
-            QString provider = parser.value(providerOption);
-            QString indexFile = parser.value(driverIndexOption);
-            return shiftech::cli::commands::DriversScanCommand::run(json, provider, indexFile);
-        } else {
-            QTextStream out(stdout);
-            out << "Unknown drivers subcommand: " << subcommand << "\n";
-            return 3;
-        }
-    } else if (command == "apps") {
-        if (args.size() < 2) {
-            QTextStream out(stdout);
-            out << "Missing subcommand for apps.\n";
-            return 3;
-        }
-        QString subcommand = args[1];
-        if (subcommand == "install") {
-            shiftech::cli::commands::AppsInstallCommand cmd;
-            std::vector<std::string> stdArgs;
-            for (const QString& a : args.mid(2)) { stdArgs.push_back(a.toStdString()); }
-            return cmd.execute(stdArgs);
-        } else {
-            QTextStream out(stdout);
-            out << "Unknown apps subcommand: " << subcommand << "\n";
-            return 3;
-        }
-    } else {
-        QTextStream out(stdout);
-        out << "Unknown command: " << command << "\n";
-        parser.showHelp(3);
+        return shiftech::cli::commands::ScanCommand::run(hasJson(args));
     }
 
-    return 0;
+    if (command == "drivers") {
+        if (args.isEmpty()) {
+            out << "Missing subcommand for 'drivers' (expected: scan)\n";
+            return 3;
+        }
+        const QString sub = args.takeFirst();
+        if (sub == "scan") {
+            QString provider = "mock";
+            QString indexFile;
+            for (int i = 0; i < args.size(); ++i) {
+                if (args[i] == "--provider" && i + 1 < args.size()) provider = args[++i];
+                else if (args[i] == "--driver-index" && i + 1 < args.size()) indexFile = args[++i];
+            }
+            return shiftech::cli::commands::DriversScanCommand::run(hasJson(args), provider, indexFile);
+        }
+        out << "Unknown drivers subcommand: " << sub << "\n";
+        return 3;
+    }
+
+    if (command == "apps") {
+        if (args.isEmpty()) {
+            out << "Missing subcommand for 'apps' (expected: install)\n";
+            return 3;
+        }
+        const QString sub = args.takeFirst();
+        if (sub == "install") {
+            shiftech::cli::commands::AppsInstallCommand cmd;
+            std::vector<std::string> forwarded;
+            for (const QString& a : args) forwarded.push_back(a.toStdString());
+            return cmd.execute(forwarded);
+        }
+        out << "Unknown apps subcommand: " << sub << "\n";
+        return 3;
+    }
+
+    out << "Unknown command: " << command << "\n\n";
+    printUsage(out);
+    return 3;
 }

@@ -9,8 +9,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <memory>
-#include <stdexcept>
 #include <QDir>
+#include <QFileInfo>
 #include <QCoreApplication>
 
 using namespace shiftech::core::system;
@@ -31,6 +31,11 @@ QJsonObject packageToJson(const DriverPackage& pkg) {
     obj["supportedOs"] = osArr;
     obj["arch"] = pkg.arch == TargetSystem::Arch::x64 ? "x64" : "x86";
     obj["downloadUrl"] = QString::fromStdString(pkg.downloadUrl);
+    const char* via = pkg.matchedVia == MatchVia::HardwareId ? "hardwareId"
+                    : pkg.matchedVia == MatchVia::CompatibleId ? "compatibleId"
+                    : "unspecified";
+    obj["matchedVia"] = via;
+    obj["matchedId"] = QString::fromStdString(pkg.matchedId);
     return obj;
 }
 
@@ -61,7 +66,21 @@ int DriversScanCommand::run(bool jsonOutput, const QString& providerName, const 
     if (providerName == "mock") {
         QString idx = indexFile;
         if (idx.isEmpty()) {
-            idx = QCoreApplication::applicationDirPath() + "/../tests/fixtures/driver_index.json";
+            // Look for a driver index next to the executable, then a couple of
+            // repo-relative fallbacks (running from a build tree).
+            const QString exeDir = QCoreApplication::applicationDirPath();
+            const QStringList candidates = {
+                exeDir + "/driver_index.json",
+                exeDir + "/../tests/fixtures/driver_index.json",
+                exeDir + "/../../tests/fixtures/driver_index.json",
+            };
+            for (const QString& c : candidates) {
+                if (QFileInfo::exists(c)) { idx = c; break; }
+            }
+            if (idx.isEmpty()) {
+                out << "Error: no driver index found. Pass --driver-index <path>.\n";
+                return 2;
+            }
         }
         provider = std::make_unique<MockDriverProvider>(idx.toStdString());
     } else if (providerName == "driverpack") {

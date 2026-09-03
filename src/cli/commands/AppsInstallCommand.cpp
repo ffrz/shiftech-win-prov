@@ -27,12 +27,15 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     parser.addOption(profilesDirOpt);
 
     QStringList qtArgs;
-    qtArgs << "provisioner.exe" << "apps" << "install";
+    qtArgs << "provisioner";
     for (const auto& a : args) {
         qtArgs << QString::fromStdString(a);
     }
-    
-    parser.process(qtArgs);
+
+    if (!parser.parse(qtArgs)) {
+        std::cerr << "Error: " << parser.errorText().toStdString() << "\n";
+        return 3;
+    }
 
     if (!parser.isSet(profileOpt)) {
         std::cerr << "Error: --profile is required.\n";
@@ -40,16 +43,31 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     }
 
     QString profileName = parser.value(profileOpt);
-    QString profilesDir = parser.value(profilesDirOpt);
-    if (profilesDir.isEmpty()) {
-        profilesDir = QCoreApplication::applicationDirPath() + "/profiles";
-    }
+    QString profilePath;
 
-    QString profilePath = QDir(profilesDir).filePath(profileName + ".json");
-    
-    // Fallback if the user passed an absolute path
+    // Absolute path to a .json profile passed directly.
     if (QFileInfo(profileName).isAbsolute() && profileName.endsWith(".json")) {
         profilePath = profileName;
+    } else {
+        const QString explicitDir = parser.value(profilesDirOpt);
+        const QString exeDir = QCoreApplication::applicationDirPath();
+        QStringList dirs;
+        if (!explicitDir.isEmpty()) {
+            dirs << explicitDir;
+        } else {
+            dirs << exeDir + "/profiles"
+                 << exeDir + "/../profiles"
+                 << exeDir + "/../../profiles";
+        }
+        for (const QString& d : dirs) {
+            const QString candidate = QDir(d).filePath(profileName + ".json");
+            if (QFileInfo::exists(candidate)) { profilePath = candidate; break; }
+        }
+        if (profilePath.isEmpty()) {
+            std::cerr << "Error: profile '" << profileName.toStdString()
+                      << "' not found. Pass --profiles-dir <dir> or an absolute .json path.\n";
+            return 2;
+        }
     }
 
     auto loadRes = ProfileLoader::load(profilePath.toStdString());
