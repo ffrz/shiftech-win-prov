@@ -1,5 +1,6 @@
 #include "AppsInstallCommand.h"
 
+#include "../../core/applications/LocalInstallerProvider.h"
 #include "../../core/applications/WinGetProvider.h"
 #include "../../core/profiles/ProfileLoader.h"
 
@@ -84,8 +85,10 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     const Profile profile = std::get<Profile>(loaded);
 
     WinGetProvider winget;
+    LocalInstallerProvider local;
     const bool wingetOk = winget.isAvailable();
 
+    const auto apps = profile.enabledApps();
     int installed = 0, already = 0, failed = 0, failedRequired = 0, skipped = 0;
     QJsonArray items;
 
@@ -94,28 +97,35 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
             << "\n\n";
         out << "Profile: " << QString::fromStdString(profile.name) << " — "
             << QString::fromStdString(profile.description) << "\n";
-        out << "Applications: " << profile.applications.size() << "\n";
+        out << "Applications (enabled): " << apps.size() << "\n";
         if (!wingetOk)
-            out << "winget: NOT AVAILABLE — every app will be skipped\n";
+            out << "winget: NOT AVAILABLE — winget-sourced apps will be skipped\n";
         out << "----------------------------------------\n";
     }
 
-    for (const auto& app : profile.applications) {
+    for (const auto& app : apps) {
+        const bool isLocal = app.source == AppSource::Local;
+        ApplicationProvider& prov = isLocal
+            ? static_cast<ApplicationProvider&>(local)
+            : static_cast<ApplicationProvider&>(winget);
+        const std::string key = isLocal ? app.id : app.wingetId;
+
         QJsonObject item;
         item["id"] = QString::fromStdString(app.id);
+        item["source"] = isLocal ? "local" : "winget";
         item["required"] = app.required;
 
         QString status;
-        if (!wingetOk) {
+        if (!isLocal && !wingetOk) {
             status = "skipped_no_winget";
             ++skipped;
-        } else if (winget.isInstalled(app.id)) {
+        } else if (prov.isInstalled(key)) {
             status = "already_installed";
             ++already;
         } else if (dryRun) {
             status = "would_install";
         } else {
-            const InstallResult r = winget.install(app.id, {});
+            const InstallResult r = prov.install(key, {});
             if (r.ok) {
                 status = "installed";
                 ++installed;
@@ -164,7 +174,7 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     // Exit: 2 already handled (profile). 1 = warnings (a required app failed, or
     // everything was skipped because winget is missing). 0 = clean.
     if (failedRequired > 0) return 1;
-    if (!wingetOk && !profile.applications.empty()) return 1;
+    if (!wingetOk && skipped > 0) return 1;
     return 0;
 }
 

@@ -1,8 +1,10 @@
 #include "ProvisionCommand.h"
 
+#include "../../core/config/ConfigTweak.h"
 #include "../../core/logging/StructuredLogger.h"
 #include "../../core/provisioning/ProvisioningEngine.h"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextStream>
@@ -29,6 +31,48 @@ const char* sevTag(Severity s) {
 }
 } // namespace
 
+int ConfigCommand::run(const QStringList& args) {
+    QTextStream out(stdout);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    out.setEncoding(QStringConverter::Utf8);
+#endif
+    if (args.value(0) != "list") {
+        out << "Usage: provisioner config list [--json]\n";
+        return 3;
+    }
+    const bool json = args.contains("--json");
+    const auto cat = shiftech::core::config::catalog();
+    if (json) {
+        QJsonArray arr;
+        for (const auto& t : cat) {
+            QJsonObject o;
+            o["id"] = QString::fromStdString(t.id);
+            o["title"] = QString::fromStdString(t.title);
+            o["description"] = QString::fromStdString(t.description);
+            o["needsElevation"] = t.needsElevation;
+            QJsonArray req;
+            for (const auto& r : t.requiredArgs) req.append(QString::fromStdString(r));
+            o["requiredArgs"] = req;
+            arr.append(o);
+        }
+        out << QJsonDocument(arr).toJson(QJsonDocument::Indented);
+        return 0;
+    }
+    out << "Config tweaks (put the id in a profile's \"config\" section):\n\n";
+    for (const auto& t : cat) {
+        out << "  " << QString::fromStdString(t.id).leftJustified(28)
+            << QString::fromStdString(t.title)
+            << (t.needsElevation ? "  [admin]" : "");
+        if (!t.requiredArgs.empty()) {
+            QStringList rs;
+            for (const auto& r : t.requiredArgs) rs << QString::fromStdString(r);
+            out << "  args: " << rs.join(", ");
+        }
+        out << "\n      " << QString::fromStdString(t.description) << "\n";
+    }
+    return 0;
+}
+
 int ProvisionCommand::run(const QStringList& args) {
     QTextStream out(stdout);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -44,6 +88,7 @@ int ProvisionCommand::run(const QStringList& args) {
     o.providerOrder = opt(args, "--provider-order").toStdString();
     o.cacheDir = opt(args, "--cache-dir");
     o.profilesDir = opt(args, "--profiles-dir");
+    o.appsDir = opt(args, "--apps-dir");
     o.logDir = opt(args, "--log-dir");
     o.mockDriverIndex = opt(args, "--driver-index");
     o.mirrorUrl = opt(args, "--mirror-url").toStdString();

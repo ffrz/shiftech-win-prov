@@ -21,6 +21,7 @@ void printUsage(QTextStream& out) {
         << "  provisioner apps install --profile <name> [--dry-run] [--profiles-dir <dir>]\n"
         << "  provisioner provision --profile <name> [--dry-run] [--skip-drivers] [--skip-apps]\n"
         << "  provisioner report [--last | --run <id>] [--json]\n"
+        << "  provisioner config list [--json]\n"
         << "\nGlobal:\n"
         << "  --json        machine-readable output where supported\n"
         << "  -h, --help    show this help\n";
@@ -104,6 +105,10 @@ int main(int argc, char* argv[]) {
 
     if (command == "report") {
         return shiftech::cli::commands::ReportCommand::run(args);
+    }
+
+    if (command == "config") {
+        return shiftech::cli::commands::ConfigCommand::run(args);
     }
 
     out << "Unknown command: " << command << "\n\n";

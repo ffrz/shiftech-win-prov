@@ -18,4 +18,10 @@ public:
     static int run(const QStringList& args);
 };
 
+// provisioner config list [--json]
+class ConfigCommand {
+public:
+    static int run(const QStringList& args);
+};
+
 } // namespace shiftech::cli::commands
