@@ -6,6 +6,13 @@ add_library(shiftech_core STATIC
     drivers/TargetSystem.cpp
     drivers/DriverMatch.cpp
     drivers/MockDriverProvider.cpp
+    drivers/DriverCache.cpp
+    drivers/DriverDownloader.cpp
+    drivers/LocalCacheProvider.cpp
+    drivers/WindowsUpdateProvider.cpp
+    drivers/MirrorProvider.cpp
+    drivers/ProviderChain.cpp
+    drivers/DriverProviderFactory.cpp
     profiles/ProfileLoader.cpp
     applications/WinGetOutput.cpp
     applications/WinGetProvider.cpp
