@@ -13,6 +13,11 @@ add_library(shiftech_core STATIC
     drivers/MirrorProvider.cpp
     drivers/ProviderChain.cpp
     drivers/DriverProviderFactory.cpp
+    drivers/PnpUtilOutput.cpp
+    drivers/InfValidator.cpp
+    drivers/PackageExtractor.cpp
+    drivers/DriverInstaller.cpp
+    drivers/DriverVerifier.cpp
     profiles/ProfileLoader.cpp
     applications/WinGetOutput.cpp
     applications/WinGetProvider.cpp

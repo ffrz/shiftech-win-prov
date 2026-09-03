@@ -10,6 +10,20 @@ typedef NTSTATUS(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 
 namespace shiftech::core::system {
 
+bool SystemInspector::isElevated() {
+    HANDLE hToken = nullptr;
+    bool elevated = false;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+        TOKEN_ELEVATION elevation;
+        DWORD cbSize = sizeof(elevation);
+        if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &cbSize)) {
+            elevated = elevation.TokenIsElevated != 0;
+        }
+        CloseHandle(hToken);
+    }
+    return elevated;
+}
+
 SystemInfo SystemInspector::inspect() {
     SystemInfo info;
 
