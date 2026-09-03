@@ -27,6 +27,7 @@ add_shiftech_test(test_packageextractor unit/test_packageextractor.cpp)
 add_shiftech_test(test_provisioningstate unit/test_provisioningstate.cpp)
 add_shiftech_test(test_reportbuilder unit/test_reportbuilder.cpp)
 add_shiftech_test(test_structuredlogger unit/test_structuredlogger.cpp)
+add_shiftech_test(test_mirrorprovider unit/test_mirrorprovider.cpp)
 
 if(SHIFTECH_BUILD_GUI)
     qt_add_executable(test_mainwindow_smoke gui/test_mainwindow_smoke.cpp)
