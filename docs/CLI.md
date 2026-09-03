@@ -1,69 +1,67 @@
 # CLI — provisioner.exe
 
-The CLI is a thin front-end over `shiftech_core`. Every capability is reachable here
-before any GUI work. It subscribes to `ProvisioningEvent`s and prints them.
+The CLI is a thin front-end over `shiftech_core`. Every capability is reachable here.
+It subscribes to `ProvisioningEvent`s and prints them; the GUI is the same engine with a
+different front-end.
 
-## Global options
-
-| Option | Meaning |
-|--------|---------|
-| `--json` | emit machine-readable JSON to stdout instead of human text |
-| `--log-dir <path>` | override `logs/` |
-| `--cache-dir <path>` | override `cache/` |
-| `--verbose` / `-v` | debug-level console output |
-| `--yes` / `-y` | assume yes for confirmations |
-| `--no-color` | disable ANSI color |
-
-Exit codes: `0` success, `1` success with warnings, `2` fatal environment error,
+Exit codes: `0` success · `1` success with warnings · `2` fatal environment error ·
 `3` bad usage.
 
-## Commands
+## Commands (all implemented)
 
-### `provisioner.exe scan`  *(Milestone 1)*
-Prints system info header + a table of **all** present devices. Devices that need a driver
-(no driver / problem code / unknown) are grouped and clearly flagged at the top.
+### `provisioner scan [--json]`
+System header + a table of **all** present devices; devices needing a driver
+(no driver / problem code / unknown) grouped and flagged first.
 
 ```
-Shiftech Win Provisioner — scan
+Shiftech Win Provisioner - scan
 
 System
-  Windows 11 Pro (build 22621)  x64   UEFI   Elevated: no
-  winget: yes   pnputil: yes   internet: yes
+  Windows 11 Pro (build 22621)  x64   Elevated: no
+  winget: yes   pnputil: yes
 
 Devices needing a driver (2)
-  [NO DRIVER]  PCI\VEN_10EC&DEV_8168        Ethernet Controller        (problem 28)
-  [UNKNOWN ]  USB\VID_0BDA&PID_8153        Unknown Device             (problem 28)
-
-All devices (42)
-  [OK]  Display   Intel(R) Iris(R) Xe Graphics       31.0.101.4502  Intel  2023-08-01
+  [UNKNOWN]  ACPI\VEN_PNP&DEV_0A0A   Unknown Device   (problem 28)
   ...
 ```
+`--json` → `{ system, devices:[Device…], needingDriver:[…] }`.
+Exit 1 if any device needs a driver.
 
-`--json` emits `{ system: {...}, devices: [ {Device...} ], needingDriver: [...] }`.
+### `provisioner drivers scan [--json] [--provider <name>] [--driver-index <path>]`
+Runs the **provider chain** (`localcache → windowsupdate → mirror`) per device and prints
+the match or `NOT FOUND (<aggregated reasons>)`. `--provider mock --driver-index <file>`
+forces a single mock provider; `--provider localcache` etc. forces one chain entry.
 
-### `provisioner.exe drivers scan`  *(Milestone 2)*
-Like `scan` but only the driver-relevant view, plus provider resolution results
-(what the configured `DriverProvider` found for each Hardware ID).
+### `provisioner drivers resolve [--download] [--json] [--provider-order <csv>] [--cache-dir <p>] [--driver-index <p>] [--mirror-url <u>]`
+Resolve every needy device via the chain. With `--download`, fetch the winning package
+into the **portable cache** (`<cache>/drivers/<packageId>/…` + `index.json`) and report
+`resolved` / `downloaded` / `cache hit` / `not found`. Never aborts on one failure.
 
-### `provisioner.exe drivers install [--dry-run] [--only <instanceId>]`  *(Milestone 3–4)*
-Resolve → download → `pnputil` install → verify, for every device needing a driver.
-`--dry-run` stops before `pnputil`. Per-device status printed; one failure never aborts.
+### `provisioner drivers install [--dry-run] [--json] [--only <instanceId>] [--provider-order <csv>] [--cache-dir <p>] [--driver-index <p>]`
+Per device: resolve → download → extract (zip/cab/folder) → `InfValidator` → (dry-run
+stops here) → `pnputil /add-driver /install` per INF → re-enumerate + verify.
+Unsigned/invalid INFs are skipped (ADR-0006). **Requires elevation** for a real install;
+`--dry-run` works unelevated. Reboot-required is reported, never auto-actioned.
 
-### `provisioner.exe apps install --profile <name> [--dry-run]`  *(Milestone 5)*
-Load `profiles/<name>.yaml|json`, detect installed, install missing via winget.
+### `provisioner apps install --profile <name> [--dry-run] [--json] [--profiles-dir <dir>]`
+Load `profiles/<name>.json`, per app `winget list` → skip if present, else
+`winget install --silent …` (one retry on a transient failure). winget missing → every
+app `skipped_no_winget`. Exit 1 only if a **required** app fails or all are skipped.
 
-### `provisioner.exe provision --profile <name> [--dry-run] [--skip-drivers] [--skip-apps]`  *(Milestone 6)*
-Full pipeline (System Check → … → Report).
+### `provisioner provision --profile <name> [--dry-run] [--skip-drivers] [--skip-apps] [--json] [--provider-order <csv>] [--cache-dir <p>] [--profiles-dir <p>] [--log-dir <p>] [--driver-index <p>]`
+The full pipeline: System Check → Hardware Scan → Driver{Analysis,Resolution,Download,
+Install,Verify} → App{Detection,Install} → Final Verify → Report → Done. Streams
+`[HH:MM:SS] LEVEL  message  (NN%)` events; writes `logs/<runId>/{run.json,state.json}`;
+prints the report. Exit 0/1/2 = SUCCESS / SUCCESS WITH WARNINGS / FAILED.
 
-### `provisioner.exe report [--last | --run <id>] [--json]`
-Print the report for the most recent (or a specific) run from `logs/`.
-
-### `provisioner.exe system`  
-Print only the `SystemInspector` result (used for pre-flight checks).
+### `provisioner report [--last | --run <id>] [--json] [--log-dir <p>]`
+Replay a past run's report from its `run.json`.
 
 ## Output contract
 
-- Human mode: one line per event, `[HH:MM:SS] SEVERITY  message`, progress bars for stages.
-- `--json` mode: a single JSON object at the end, plus optional NDJSON event stream on
-  stderr when `--verbose`.
-- Every run also writes `logs/<timestamp>.json` regardless of `--json`.
+- Human: one line per event `[HH:MM:SS] LEVEL  message`, `(NN%)` for stage progress, then
+  the report block.
+- `--json`: a single JSON object.
+- Every `provision` run writes `logs/<runId>/` regardless of `--json`.
+- Paths (`cache/`, `logs/`, `profiles/`) resolve relative to the executable by default so
+  the whole folder is portable (USB drive).

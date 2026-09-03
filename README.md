@@ -5,8 +5,22 @@ automatically after a fresh Windows install: hardware detection, driver resoluti
 download / install / verification, and standard application installation driven by
 selectable profiles — with structured logging and a final report.
 
-**Status:** pre-implementation. This repository currently contains only the scaffold,
-architecture docs, and agent working instructions. No application code has been written yet.
+**Status:** V1 feature-complete (2026-09-03). All 7 milestones implemented; 19 offline
+test suites pass; clean `-Werror` build. Deferred: real `WindowsUpdateProvider` /
+`MirrorProvider` (Milestone 3.5 — chain works, those two entries are stubs), VM
+integration tests, Windows 7/8 GUI (CLI-only there per ADR-0003). See
+[docs/ROADMAP.md](docs/ROADMAP.md) and [AGENTS.md](AGENTS.md) §8.
+
+## Quick start
+
+```
+cmake -S . -B build -DCMAKE_PREFIX_PATH=<Qt> -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build build
+build\provisioner.exe scan
+build\provisioner.exe provision --profile standard --dry-run
+cmake -S . -B build -DSHIFTECH_BUILD_GUI=ON && cmake --build build   # then build\shiftech_gui.exe
+```
+Toolchain paths for this machine: [docs/BUILD.md](docs/BUILD.md). Commands: [docs/CLI.md](docs/CLI.md).
 
 ---
 
