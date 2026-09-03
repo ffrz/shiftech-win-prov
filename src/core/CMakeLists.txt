@@ -21,6 +21,8 @@ add_library(shiftech_core STATIC
     profiles/ProfileLoader.cpp
     applications/WinGetOutput.cpp
     applications/WinGetProvider.cpp
+    applications/LocalInstallerProvider.cpp
+    config/ConfigTweaks.cpp
     logging/StructuredLogger.cpp
     provisioning/ProvisioningEvent.cpp
     provisioning/ProvisioningState.cpp
