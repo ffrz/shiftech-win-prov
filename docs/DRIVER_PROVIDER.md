@@ -68,9 +68,12 @@ public:
 | Priority | Provider | Network | Status |
 |----------|----------|---------|--------|
 | 1 | `LocalCacheProvider` | none | Milestone 3 |
-| 2 | `DriverPackProvider` | yes | **only if ADR-0007 approves** |
-| 3 | `WindowsUpdateProvider` | yes | stub in M3, real later (COM `IUpdateSearcher`, driver category) |
-| 4 | `MirrorProvider` | yes | stub in M3, real later (internal HTTP/share + JSON index) |
+| 2 | `WindowsUpdateProvider` | yes | stub in M3, real in M3.5/M4 (COM `IUpdateSearcher`, `IsInstalled=0 and Type='Driver'`) |
+| 3 | `MirrorProvider` | yes | stub in M3, real later (internal HTTP/share + JSON index) |
+
+`DriverPackProvider` was evaluated for slot 2 and **rejected** — see
+[DECISIONS.md](DECISIONS.md) ADR-0007 (license forbids redistribution; no API). Do not
+build it.
 
 `mock` (`MockDriverProvider`) is **not** in the default chain — it's selected explicitly
 for tests/dev via `--provider mock`.
@@ -84,35 +87,25 @@ for tests/dev via `--provider mock`.
 - `downloadUrl` in fixtures points at small local files under `tests/fixtures/packages/`
   so `DriverDownloader` and `DriverInstaller` (dry-run) can be exercised.
 
-## DriverPackProvider (BLOCKED — see ADR-0007)
+## DriverPack — rejected (ADR-0007)
 
-**Do not write `DriverPackProvider` code, and do not hardcode any DriverPack URL/HTML
-structure, until every box below is filled in and ADR-0007 is signed off.** If the
-investigation fails, DriverPack is simply dropped from the chain (positions 1/3/4 remain).
+Investigation done 2026-09-03. **DriverPack is not used.** The License Agreement limits use
+to "personal, informational, noncommercial purposes" and states "The Software may not be
+redistributed" — bundling its drivers onto technician provisioning media is not permitted.
+There is also no official API (only a Cloudflare-gated browse page). `DriverPackProvider`
+will not be built; `WindowsUpdateProvider` takes slot 2.
 
-### Investigation checklist
+## WindowsUpdateProvider (chain slot 2)
 
-- [ ] Is there an **official public API** from DriverPack (driverpack.io / DriverPack
-      Solution)? Document the base URL, auth, rate limits, response schema.
-- [ ] If no API: what exactly is served? (a) per-Hardware-ID driver packs, (b) one giant
-      offline pack, (c) an online "solution" client only. Record findings.
-- [ ] Is **direct, stable download by Hardware ID** possible? Capture a real request/response
-      for one known ID (e.g. a Realtek NIC).
-- [ ] **Licensing / Terms of Service**: are automated download and redistribution to
-      technician machines permitted? Quote the relevant clause. If unclear → stop, escalate.
-- [ ] **Integrity**: does the source provide checksums / signatures? How is package
-      authenticity established?
-- [ ] **Stability**: how likely is the mechanism to break? Is scraping HTML required? If a
-      scraper is unavoidable, is there a more reliable alternative (e.g. Windows Update
-      driver catalog, vendor catalogs, a curated internal mirror)?
-- [ ] **Alternatives evaluated**: Windows Update (`UpdateSearcher` / `IUpdateServiceManager`
-      with the driver category), Microsoft Update Catalog, per-vendor driver catalogs,
-      an internal driver share/mirror. Record pros/cons vs DriverPack.
-
-### Output of the investigation
-
-Write the findings into [DECISIONS.md](DECISIONS.md) as **ADR-0007** (sub-task of ADR-0004):
-either "DriverPack is in the chain, mechanism = …" or "DriverPack dropped, reason = …".
+- COM `IUpdateSearcher` (`wuapi.h` / `Msxml2`-style COM, link `wuguid`/late-bound).
+- Criteria: `"IsInstalled=0 and Type='Driver'"`.
+- Online: default `ServerSelection`. Offline / air-gapped: `IUpdateServiceManager::AddScanPackageService`
+  with a `wsusscn2.cab` placed on the USB medium (`cache/wsusscn2.cab`).
+- Each `IUpdate` in the result → a `DriverPackage`: `driverName` = title,
+  `version` from `DriverVerDate`/`DriverVersion`, `downloadUrl` from
+  `IUpdate::DownloadContents`, `checksum` when present, WHQL-signed by definition.
+- Match to the device by the update's `DriverHardwareID` / `DriverClass` vs the device's IDs.
+- Everything wrapped in timeouts; a WUA failure = provider returns `found=false`, chain moves on.
 
 ## Portable cache & DriverDownloader
 

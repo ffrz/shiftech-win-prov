@@ -2,13 +2,13 @@
 
 **Goal:** a robust, **portable** `DriverDownloader` + `cache/drivers/` tree, a
 `LocalCacheProvider` that reads it offline, and the provider-chain plumbing in the engine.
-Plus the DriverPack sub-investigation (ADR-0007).
+DriverPack was investigated and **rejected** (ADR-0007).
 
-The owner decision is recorded in **[../DECISIONS.md](../DECISIONS.md) ADR-0004 / ADR-0006** —
-read it before starting. Key points:
+The owner decisions are in **[../DECISIONS.md](../DECISIONS.md) ADR-0004 / 0006 / 0007** —
+read them before starting. Key points:
 - Tool + cache run **from a USB flash drive**. All paths relative to the executable.
-- Resolution is a **chain**: LocalCache → (DriverPack?) → WindowsUpdate → Mirror. First
-  usable package wins.
+- Resolution is a **chain**: `LocalCache → WindowsUpdate → Mirror`. First usable package wins.
+  **Do not build `DriverPackProvider`** — license forbids it.
 - Unverifiable package ⇒ **warn + skip** (ADR-0006).
 
 Prereq: Milestones 1–2 accepted. Read [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md) fully.
@@ -56,24 +56,19 @@ Prereq: Milestones 1–2 accepted. Read [../DRIVER_PROVIDER.md](../DRIVER_PROVID
       `DriverSearchResult resolve(const Device&, const TargetSystem&)` tries each provider,
       returns the first with `found == true`, aggregates `notFoundReason`s otherwise.
 - [ ] `DriverProviderFactory`: build the chain from a spec —
-      default `"localcache,windowsupdate,mirror"` (DriverPack added only per ADR-0007).
+      default `"localcache,windowsupdate,mirror"`.
       `--provider-order <csv>` overrides. `mock` selectable explicitly for testing.
+      `driverpack` is rejected with "unsupported (ADR-0007)".
 - [ ] `WindowsUpdateProvider` / `MirrorProvider`: **stubs** in this milestone — real impl is
       Milestone 3.5 / 4 follow-up. They must compile, return `found=false` with a clear
       "not implemented yet" reason, and be wired into the factory so the chain is exercised.
 - [ ] `drivers scan` uses the chain (not a single provider) unless `--provider` forces one.
 
-## Task 4 — DriverPack sub-investigation → ADR-0007
+## Task 4 — DriverPack sub-investigation → ADR-0007 ✅ DONE
 
-Work the checklist in [../DRIVER_PROVIDER.md](../DRIVER_PROVIDER.md). Capture evidence
-(real request/response, quoted ToS clause). Decide **one**:
-- DriverPack is in the chain — document the exact reliable download-by-Hardware-ID
-  mechanism, its position vs WindowsUpdate, checksum story; **or**
-- DriverPack is dropped — record why (no API / ToS forbids redistribution to media /
-  scraping too fragile). Chain stays LocalCache → WindowsUpdate → Mirror.
-
-Write **ADR-0007** in [../DECISIONS.md](../DECISIONS.md). Get owner sign-off before
-implementing any `DriverPackProvider`.
+Completed 2026-09-03. **DriverPack dropped** — license forbids redistribution, no API.
+See [../DECISIONS.md](../DECISIONS.md) ADR-0007. Nothing further to do here; do not build
+`DriverPackProvider`.
 
 ## Task 5 — CLI
 

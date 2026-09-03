@@ -45,13 +45,11 @@ no/limited internet. Resolution should try the fastest source first.
    Default order:
    1. **`LocalCacheProvider`** — the portable `cache/drivers/` tree on the same medium as
       the exe. Zero network. Always tried first.
-   2. **`DriverPackProvider`** — *only if* the DriverPack sub-investigation (below) yields a
-      reliable + license-permitted direct-download-by-Hardware-ID mechanism. Preferred over
-      Windows Update when it is fast and has the driver.
-   3. **`WindowsUpdateProvider`** — COM `IUpdateSearcher` with the driver category.
-      Microsoft-hosted, signed, licensed, stable. Needs internet.
-   4. **`MirrorProvider`** — an internal HTTP/file share with a JSON index keyed by
-      Hardware ID. Last resort; fully under our control.
+   2. **`WindowsUpdateProvider`** — COM `IUpdateSearcher` with the driver category.
+      Microsoft-hosted, signed, licensed, stable. Needs internet (or an offline scan
+      package). *(DriverPack was evaluated for this slot and rejected — see ADR-0007.)*
+   3. **`MirrorProvider`** — an internal HTTP/file share with a JSON index keyed by
+      Hardware ID. For hardware Windows Update does not carry; fully under our control.
    Order is configurable (`--provider-order`, or a config file on the USB medium).
 2. **The cache is the portable artifact.** Everything any provider downloads is written into
    `cache/drivers/<packageId>/` (deterministic id, see [DRIVER_PROVIDER.md](DRIVER_PROVIDER.md)).
@@ -63,15 +61,12 @@ no/limited internet. Resolution should try the fastest source first.
    whole folder is relocatable.
 4. **Unverifiable package ⇒ warn + skip** (ADR-0006).
 
-**DriverPack sub-investigation (still required before writing `DriverPackProvider`):**
-the checklist in [DRIVER_PROVIDER.md](DRIVER_PROVIDER.md) — official API vs scrape, direct
-download by Hardware ID, **ToS for automated download + redistribution onto technician
-media**, checksums/signatures, stability. If it fails any of these, `DriverPackProvider`
-is dropped from the chain and #3/#4 carry the load; record the finding as ADR-0007.
+**DriverPack sub-investigation:** completed — see **ADR-0007**. Outcome: **dropped**
+(license forbids redistribution, no API). Chain is `LocalCache → WindowsUpdate → Mirror`.
 
 **Consequences:**
-- `LocalCacheProvider` + `DriverDownloader` + the portable cache can be built and tested
-  now (Milestone 3) regardless of the DriverPack question.
+- `LocalCacheProvider` + `DriverDownloader` + the portable cache built and tested in
+  Milestone 3.
 - `MockDriverProvider` stays as the test/dev provider and is not in the default chain.
 - The engine must treat "provider chain" as first-class: try, fall through on
   not-found/error, never abort the run.
@@ -88,15 +83,39 @@ does get installed. A future `--force-unverified` flag may override this for lab
 **Consequences:** some devices will be left without a driver on offline/unsigned sources;
 that is the accepted trade-off. The report must list skipped-unverified devices distinctly.
 
-## ADR-0007 — DriverPack sub-investigation outcome
-**Status:** not started — sub-task of ADR-0004
-**Context:** ADR-0004 puts `DriverPackProvider` at priority #2 *conditionally*. This ADR
-records whether that condition is met.
-**Decision:** _to be written_ after completing the checklist in
-[DRIVER_PROVIDER.md](DRIVER_PROVIDER.md). Either "DriverPack is in the chain, mechanism =
-…", or "DriverPack dropped, reason = …".
-**Consequences:** until written, the default provider chain is Local → WindowsUpdate →
-Mirror (DriverPack omitted).
+## ADR-0007 — DriverPack sub-investigation outcome: DROPPED
+**Status:** accepted (investigation 2026-09-03)
+**Context:** ADR-0004 puts `DriverPackProvider` at priority #2 *conditionally*, subject to a
+license + mechanism check.
+**Findings:**
+- **No official API.** driverpack.io exposes a by-hardware-ID browse page
+  (`/en/hwids`) but no documented programmatic endpoint; the page is Cloudflare-gated
+  (403 to non-browser clients). Any integration would be HTML scraping.
+- **License forbids our use.** The DriverPack License Agreement
+  (<https://driverpack.io/en/info/terms-of-use>): *"The Software may be used solely for
+  personal, informational, noncommercial purposes; The Software may not be
+  redistributed."* and *"the official version of the Solution is distributed only on the
+  website https://driverpack.io"*. Bundling drivers pulled from DriverPack onto a
+  technician USB drive for provisioning customer machines is commercial redistribution —
+  **not permitted.**
+- **Integrity:** no public per-file checksum/signature manifest independent of the client.
+**Decision:** **`DriverPackProvider` is dropped.** It will not be built. The provider chain
+is **`LocalCache → WindowsUpdate → Mirror`**.
+- **WindowsUpdateProvider** (new priority #2): COM `IUpdateSearcher` with criteria
+  `IsInstalled=0 and Type='Driver'`, `ServerSelection = ssWindowsUpdate` (online) or an
+  offline scan package (`wsusscn2.cab`) when configured. Microsoft-hosted, WHQL-signed,
+  licensed for OEM/enterprise provisioning, works Win7→Win11. This is the primary *online*
+  source.
+- **MirrorProvider** (priority #3): an internal HTTP/file-share driver repo with a JSON
+  index keyed by Hardware ID, fully under our control — for drivers Windows Update does
+  not carry (niche OEM hardware).
+**Consequences:**
+- Remove the `driverpack` option from `DriverProviderFactory`; the CLI should reject it
+  with "unsupported (see ADR-0007)".
+- The portable `LocalCacheProvider` + pre-population workflow becomes even more important,
+  since WindowsUpdate needs connectivity and Mirror needs infrastructure.
+- If a future curated/licensed bulk driver source appears, add it as another chain entry
+  via a new ADR — do not revisit DriverPack.
 
 ## ADR-0005 — Archive extraction
 **Status:** proposed
