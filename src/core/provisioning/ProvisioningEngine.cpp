@@ -119,7 +119,10 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
     // ---- Load the profile once; it drives all three sections ----
     profiles::Profile profile;
     bool haveProfile = false;
-    if (!opts.profile.empty()) {
+    if (opts.profileObject.has_value()) {
+        profile = *opts.profileObject;
+        haveProfile = true;
+    } else if (!opts.profile.empty()) {
         const QString profilePath = [&]() -> QString {
             const QString name = QString::fromStdString(opts.profile);
             if (QFileInfo(name).isAbsolute() && name.endsWith(".json")) return name;

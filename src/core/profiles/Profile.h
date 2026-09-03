@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+class QJsonObject;
+
 namespace shiftech::core::profiles {
 
 // --- drivers section ---
@@ -42,6 +44,9 @@ struct Profile {
     // Convenience: only the enabled items.
     std::vector<AppEntry> enabledApps() const;
     std::vector<ConfigEntry> enabledConfig() const;
+
+    // Serialize back to the on-disk JSON shape (for the GUI's "Save as profile…").
+    QJsonObject toJson() const;
 };
 
 } // namespace shiftech::core::profiles

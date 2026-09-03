@@ -1,16 +1,21 @@
 #pragma once
 
+#include "../profiles/Profile.h"
 #include "ProvisioningEvent.h"
 #include "ProvisioningState.h"
 #include "ReportBuilder.h"
 #include <QString>
 #include <atomic>
+#include <optional>
 #include <string>
 
 namespace shiftech::core::provisioning {
 
 struct ProvisioningOptions {
-    std::string profile;              // app profile name/path ("" => skip apps)
+    std::string profile;              // profile name/path ("" => skip apps/config)
+    // If set, this profile is used directly and `profile` (the path) is ignored.
+    // The GUI passes an in-memory profile edited from the checklist tabs.
+    std::optional<profiles::Profile> profileObject;
     bool dryRun = false;
     bool skipDrivers = false;
     bool skipApps = false;

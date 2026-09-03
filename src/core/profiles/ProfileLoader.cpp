@@ -22,6 +22,51 @@ std::vector<ConfigEntry> Profile::enabledConfig() const {
     return out;
 }
 
+QJsonObject Profile::toJson() const {
+    QJsonObject drv;
+    drv["enabled"] = drivers.enabled;
+    if (!drivers.providerOrder.empty())
+        drv["providerOrder"] = QString::fromStdString(drivers.providerOrder);
+    drv["installUnsigned"] = drivers.installUnsigned;
+    QJsonArray ex;
+    for (const auto& e : drivers.exclude) ex.append(QString::fromStdString(e));
+    drv["exclude"] = ex;
+
+    QJsonArray apps;
+    for (const auto& a : applications) {
+        QJsonObject o;
+        o["id"] = QString::fromStdString(a.id);
+        o["source"] = a.source == AppSource::Local ? "local" : "winget";
+        if (a.source == AppSource::WinGet)
+            o["wingetId"] = QString::fromStdString(a.wingetId);
+        o["enabled"] = a.enabled;
+        o["required"] = a.required;
+        apps.append(o);
+    }
+
+    QJsonArray cfg;
+    for (const auto& c : config) {
+        QJsonObject o;
+        o["id"] = QString::fromStdString(c.id);
+        o["enabled"] = c.enabled;
+        if (!c.args.empty()) {
+            QJsonObject a;
+            for (const auto& [k, v] : c.args) a[QString::fromStdString(k)] =
+                QString::fromStdString(v);
+            o["args"] = a;
+        }
+        cfg.append(o);
+    }
+
+    QJsonObject root;
+    root["name"] = QString::fromStdString(name);
+    root["description"] = QString::fromStdString(description);
+    root["drivers"] = drv;
+    root["applications"] = apps;
+    root["config"] = cfg;
+    return root;
+}
+
 namespace {
 
 using E = ProfileLoadError;
