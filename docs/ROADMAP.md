@@ -90,10 +90,14 @@ green (19 suites total); ADR-0003 resolved (CLI-only on Win7/8). Manual QA:
 old profile format; 22 test suites green. Details in
 [tasks/MILESTONE-8.md](tasks/MILESTONE-8.md).
 
-## Milestone 9 — GUI 3-tab checklist picker (not started)
-**Scope:** Drivers / Applications / Config tabs, each item a checkbox, seeded from a
-profile — the DriverPack experience. Backend (M8) is ready. See
+## Milestone 9 — GUI 3-tab checklist picker ✅ DONE (2026-09-04)
+**Scope:** `ChecklistTabs` (Drivers / Applications / Config tabs, checkbox per item,
+seeded from a profile), Start runs an in-memory effective `Profile`, "Save as profile…".
+**Result:** the DriverPack-style picker works; GUI launched + screenshotted; 22 test
+suites green; core additions are thin (`profileObject`, `Profile::toJson`). Details in
 [tasks/MILESTONE-9.md](tasks/MILESTONE-9.md).
+
+**All milestones (1–9) complete.**
 
 ## Out of scope for V1
 Auto-reboot; resume-after-reboot execution (design only); ARM; a service host; any

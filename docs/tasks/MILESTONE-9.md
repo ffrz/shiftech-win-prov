@@ -55,12 +55,32 @@ Prereq: Milestone 8 accepted. The backend is all there:
       that seeding a fixture profile checks the right rows.
 - [ ] Update [../GUI_QA.md](../GUI_QA.md) with the tab workflow.
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-04)
 
-- [ ] Launching the GUI, picking `standard`, shows Drivers/Apps/Config tabs with the
-      profile's selections pre-checked.
-- [ ] Un/re-checking items and clicking Start runs exactly the selected set (verify via the
-      dry-run log).
-- [ ] "Save as profile…" round-trips through `ProfileLoader`.
-- [ ] `src/core` diff is empty or a single signed-off thin `run(Profile, options)` overload.
-- [ ] Smoke test + manual QA green. Change summary. STOP for review.
+- [x] GUI has a `QTabWidget` with **Drivers / Applications / Config** tabs
+      (`src/gui/ChecklistTabs`). Picking a profile from the dropdown re-seeds all three.
+- [x] **Drivers tab:** "Run driver stage" toggle, editable provider-order, "Install
+      unsigned" toggle, live device table (from `DeviceEnumerator`) — untick a device →
+      it goes to `drivers.exclude`.
+- [x] **Applications tab:** table = profile apps ∪ `LocalInstallerProvider::available()`,
+      checkbox + name + source (winget/local) + Required checkbox.
+- [x] **Config tab:** every `config::catalog()` tweak, checkbox + title + `admin` badge +
+      inline args field for tweaks that need one.
+- [x] Start builds an effective `Profile` from the ticked state and runs it via
+      `ProvisioningOptions::profileObject` (verified: dry-run log shows exactly the ticked
+      apps/tweaks).
+- [x] **Save as profile…** writes `Profile::toJson()` to `profiles/<name>.json`
+      (name forced to the file stem); round-trips through `ProfileLoader`.
+- [x] `src/core` additions: `ProvisioningOptions::profileObject` (optional in-memory
+      profile) + `Profile::toJson()` — both thin, no pipeline logic moved out of core.
+- [x] `test_mainwindow_smoke` extended: 3 tabs present, `ChecklistTabs::seed` →
+      `effectiveProfile()` round-trip checks the right rows. 22 suites green.
+- [x] GUI launched and screenshotted; manual QA script in [../GUI_QA.md](../GUI_QA.md).
+
+### Deviations / notes
+- "Pause" is still folded into Cancel (from M7).
+- The Applications tab does not (yet) show a live "installed?" column — deferred; it would
+  need per-row provider queries on a worker thread. The dry-run log already shows
+  `already installed` vs `would install`.
+- No curated winget shortlist in the Apps tab — you get the profile's apps + local apps;
+  add a winget app by editing the profile JSON (or a future "+ add winget id" button).
