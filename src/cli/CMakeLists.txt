@@ -5,6 +5,7 @@ qt_add_executable(provisioner
     commands/DriversResolveCommand.cpp
     commands/DriversInstallCommand.cpp
     commands/AppsInstallCommand.cpp
+    commands/ProvisionCommand.cpp
 )
 
 set_target_properties(provisioner PROPERTIES WIN32_EXECUTABLE OFF)

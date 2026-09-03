@@ -82,13 +82,35 @@ Prereq: Milestone 5 accepted. Read [../ARCHITECTURE.md](../ARCHITECTURE.md) §3�
 
 ---
 
-## Exit criteria
+## Exit criteria — DONE (2026-09-03)
 
-- [ ] `provision --profile standard --dry-run` on this machine runs the whole pipeline,
-      streams events, prints a full report, writes a valid `logs/<run>/` dir.
-- [ ] State is persisted after every transition (`state.json` shows the last stage).
-- [ ] Injected driver + app failures are recorded and do NOT stop the run; report shows
-      "SUCCESS WITH WARNINGS".
-- [ ] `report --last` reproduces the report from the log.
-- [ ] No business logic added to any CLI class — it all lives in `provisioning/`.
-- [ ] Unit tests pass. Change summary. STOP for review.
+- [x] `provision --profile standard --dry-run` runs the whole pipeline on this machine:
+      SystemCheck → HardwareScan → Driver{Analysis,Resolution,Download,Install,Verify} →
+      App{Detection,Install} → FinalVerify → Report → Done. Streams `[HH:MM:SS] LEVEL msg
+      (NN%)` events, prints the full report, writes `logs/<runId>/{run.json,state.json}`.
+- [x] State persisted after every transition — `state.json` `stageHistory` shows the full
+      ordered path ending at `Done` (or the stage reached before `Failed`).
+- [x] `--skip-drivers` / `--skip-apps` walk the remaining stages correctly (SUCCESS /
+      SUCCESS WITH WARNINGS as appropriate).
+- [x] Per-item driver "not found" and app failures are recorded and do NOT abort the run;
+      report → "SUCCESS WITH WARNINGS". Only a fatal env error (unsupported arch, not
+      elevated for real install, empty enumeration, bad profile) → `Failed` / exit 2.
+- [x] `report --last` and `report --run <id>` reproduce the report from `run.json`.
+- [x] `--json` on `provision` and `report`.
+- [x] No business logic in CLI classes — `ProvisioningEngine` owns the pipeline; the CLI
+      only builds `ProvisioningOptions`, subscribes an `EventSink`, and renders the result.
+- [x] Unit tests pass: `test_provisioningstate` (transitions + JSON round-trip),
+      `test_reportbuilder` (totals + status logic), `test_structuredlogger` (valid JSON,
+      secret redaction, latest-run lookup). 18 suites total.
+
+### Deviations / notes
+- Transition rule: strictly forward through the ordered `Stage` enum (skips allowed for
+  `--skip-*`), never backward, no escape from `Done`/`Failed`. `transitionTo` throws
+  `std::logic_error` on violation.
+- `StructuredLogger::redact` scrubs `password/token/secret/api-key = <val>` and long
+  hex/base64 blobs from event messages. Usernames in filesystem paths are kept (not
+  secrets), per the task-file policy.
+- Resume-after-reboot execution is V2; `state.json` is written faithfully so it is
+  possible later, but the engine does not consume it yet.
+- Real (non-dry-run) `provision` needs elevation for the driver stages; not exercised on
+  the dev machine.

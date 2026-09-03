@@ -58,13 +58,15 @@ task file). Details in [tasks/MILESTONE-4.md](tasks/MILESTONE-4.md).
 all-skipped + warnings exit; required-vs-optional failure semantics; 15 suites green.
 Details in [tasks/MILESTONE-5.md](tasks/MILESTONE-5.md).
 
-## Milestone 6 — Provisioning pipeline
-**Scope:** `ProvisioningEngine`, full pipeline, `ProvisioningState` state machine,
-`ProvisioningEvent` stream, `StructuredLogger` JSON output, report builder (human + JSON).
-`provisioner.exe provision --profile <name>`. `provisioner.exe report`.
-**Exit criteria:** end-to-end `provision --dry-run` on this machine produces a full log +
-report; state persisted at every transition; provisioning-state and error-handling unit
-tests pass.
+## Milestone 6 — Provisioning pipeline ✅ DONE (2026-09-03)
+**Scope:** `ProvisioningEvent` + `EventSink`, `ProvisioningState` (14-stage machine +
+JSON), `ReportBuilder` (Report + SUCCESS/WARNINGS/FAILED), `StructuredLogger`
+(`logs/<runId>/{run.json,state.json}` + redaction), `ProvisioningEngine` (full pipeline),
+`provisioner provision [--dry-run] [--skip-drivers] [--skip-apps] [--json]`,
+`provisioner report [--last|--run <id>] [--json]`.
+**Result:** full dry-run pipeline verified end-to-end on this machine (events, report, log
+dir, state history); skip modes work; 18 test suites green. Business logic entirely in
+`provisioning/`. Details in [tasks/MILESTONE-6.md](tasks/MILESTONE-6.md).
 
 ## Milestone 7 — Qt GUI
 **Scope:** `shiftech_gui` (Qt Widgets), dashboard per the initial spec (system info,

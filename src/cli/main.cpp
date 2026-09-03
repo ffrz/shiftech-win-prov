@@ -6,6 +6,7 @@
 #include "commands/DriversResolveCommand.h"
 #include "commands/DriversInstallCommand.h"
 #include "commands/AppsInstallCommand.h"
+#include "commands/ProvisionCommand.h"
 
 namespace {
 
@@ -18,6 +19,8 @@ void printUsage(QTextStream& out) {
         << "                              [--cache-dir <p>] [--driver-index <p>] [--mirror-url <u>]\n"
         << "  provisioner drivers install [--dry-run] [--json] [--only <instanceId>]\n"
         << "  provisioner apps install --profile <name> [--dry-run] [--profiles-dir <dir>]\n"
+        << "  provisioner provision --profile <name> [--dry-run] [--skip-drivers] [--skip-apps]\n"
+        << "  provisioner report [--last | --run <id>] [--json]\n"
         << "\nGlobal:\n"
         << "  --json        machine-readable output where supported\n"
         << "  -h, --help    show this help\n";
@@ -93,6 +96,14 @@ int main(int argc, char* argv[]) {
         }
         out << "Unknown apps subcommand: " << sub << "\n";
         return 3;
+    }
+
+    if (command == "provision") {
+        return shiftech::cli::commands::ProvisionCommand::run(args);
+    }
+
+    if (command == "report") {
+        return shiftech::cli::commands::ReportCommand::run(args);
     }
 
     out << "Unknown command: " << command << "\n\n";
