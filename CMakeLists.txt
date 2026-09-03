@@ -24,6 +24,10 @@ include(cmake/CompilerWarnings.cmake)
 add_subdirectory(src/core)
 add_subdirectory(src/cli)
 
+if(SHIFTECH_BUILD_GUI)
+    add_subdirectory(src/gui)
+endif()
+
 if(SHIFTECH_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
