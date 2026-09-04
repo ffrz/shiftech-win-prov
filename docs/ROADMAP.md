@@ -103,9 +103,16 @@ no profile editing (edit the `.json` for that).
 installed, `pnputil /delete-driver` drivers it published, revert config tweaks it applied.
 Reads `run.json`; enriched with `publishedInfs` + app `source`/`wingetId`.
 `ConfigTweak::revert()` added for every tweak (some `NotSupported`).
-**Result:** `reset --dry-run` verified on this machine; 24 test suites green (no machine
+**Result:** `reset --dry-run` verified on this machine; 23 test suites green (no machine
 mutation in tests); real reset is VM-only. Details in
 [tasks/MILESTONE-10.md](tasks/MILESTONE-10.md).
+
+## Post-V1 additions
+- **Portable local apps** (2026-09-04) — `apps/<id>/app.json` gains `"kind": "portable"`:
+  extract a `.zip`/`.7z` to a folder (`%DESKTOP%\…`), flatten a wrapper folder, optional
+  Desktop shortcut. `.7z` via bundled `tools/7za.exe`. Missing installer/archive → app
+  skipped with a clear reason. Verified end-to-end (KMSOffline `.7z` → folder). See
+  [PROFILES.md](PROFILES.md).
 
 **All milestones (1–10) complete.**
 
