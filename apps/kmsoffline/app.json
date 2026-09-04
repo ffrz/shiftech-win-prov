@@ -1,7 +1,7 @@
 {
   "name": "KMSOffline (activation tool)",
   "kind": "portable",
-  "archive": "kmsoffline-2.4.7.7z",
+  "archive": "KMSOffline_2.4.7.kuyhAa.7z",
   "extractTo": "%DESKTOP%\\KMSOffline",
   "flattenSingleRoot": true,
   "shortcutExe": "KMSoffline_x64.exe",

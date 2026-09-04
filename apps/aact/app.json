@@ -1,7 +1,7 @@
 {
   "name": "AAct (activation tool)",
   "kind": "portable",
-  "archive": "aact-4.0-portable.7z",
+  "archive": "AAct 4.0 Portable.kuyhAa.7z",
   "extractTo": "%DESKTOP%\\AAct",
   "flattenSingleRoot": true,
   "shortcutExe": "AAct_x64.exe",
