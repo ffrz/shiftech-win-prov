@@ -21,6 +21,18 @@ qt_standard_project_setup()
 
 include(cmake/CompilerWarnings.cmake)
 
+# --- app icon: compile favicon.ico into a .rc that each exe links ---
+set(APP_ICON_ICO "${CMAKE_SOURCE_DIR}/favicon.ico")
+if(WIN32 AND EXISTS "${APP_ICON_ICO}")
+    set(APP_ICON_PATH "${APP_ICON_ICO}")
+    configure_file("${CMAKE_SOURCE_DIR}/cmake/app.rc.in"
+                   "${CMAKE_BINARY_DIR}/app_icon.rc" @ONLY)
+    set(SHIFTECH_APP_ICON_RC "${CMAKE_BINARY_DIR}/app_icon.rc"
+        CACHE INTERNAL "generated .rc with the app icon")
+else()
+    set(SHIFTECH_APP_ICON_RC "" CACHE INTERNAL "")
+endif()
+
 add_subdirectory(src/core)
 add_subdirectory(src/cli)
 

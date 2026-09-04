@@ -1,0 +1,3 @@
+// Windows resource: embeds the app icon into the .exe (shown in Explorer / taskbar).
+// @APP_ICON_PATH@ is filled in by configure_file().
+IDI_ICON1 ICON "@APP_ICON_PATH@"

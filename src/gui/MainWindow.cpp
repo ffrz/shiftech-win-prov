@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QIcon>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -48,6 +49,7 @@ profiles::Profile blankProfile() {
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("Shiftech Win Provisioner");
+    setWindowIcon(QIcon(":/app.ico"));
     resize(860, 760);
 
     auto* central = new QWidget(this);

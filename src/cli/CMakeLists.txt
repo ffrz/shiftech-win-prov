@@ -7,6 +7,7 @@ qt_add_executable(provisioner
     commands/AppsInstallCommand.cpp
     commands/ProvisionCommand.cpp
     commands/ResetCommand.cpp
+    ${SHIFTECH_APP_ICON_RC}
 )
 
 set_target_properties(provisioner PROPERTIES WIN32_EXECUTABLE OFF)
