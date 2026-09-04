@@ -52,8 +52,9 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     QCommandLineOption profileOpt({"p", "profile"}, "Profile name or .json path", "profile");
     QCommandLineOption dryRunOpt({"d", "dry-run"}, "Print the plan without installing");
     QCommandLineOption profilesDirOpt("profiles-dir", "Directory containing profiles", "dir");
+    QCommandLineOption appsDirOpt("apps-dir", "Directory containing local app folders", "dir");
     QCommandLineOption jsonOpt("json", "Machine-readable output");
-    parser.addOptions({profileOpt, dryRunOpt, profilesDirOpt, jsonOpt});
+    parser.addOptions({profileOpt, dryRunOpt, profilesDirOpt, appsDirOpt, jsonOpt});
 
     QStringList qtArgs{"provisioner"};
     for (const auto& a : args) qtArgs << QString::fromStdString(a);
@@ -85,7 +86,7 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     const Profile profile = std::get<Profile>(loaded);
 
     WinGetProvider winget;
-    LocalInstallerProvider local;
+    LocalInstallerProvider local(parser.value(appsDirOpt));
     const bool wingetOk = winget.isAvailable();
 
     const auto apps = profile.enabledApps();
@@ -115,8 +116,14 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
         item["source"] = isLocal ? "local" : "winget";
         item["required"] = app.required;
 
+        const std::string localErr = isLocal ? local.manifestError(app.id) : std::string();
+
         QString status;
-        if (!isLocal && !wingetOk) {
+        if (isLocal && !localErr.empty()) {
+            status = "skipped";
+            item["reason"] = QString::fromStdString(localErr);
+            ++skipped;
+        } else if (!isLocal && !wingetOk) {
             status = "skipped_no_winget";
             ++skipped;
         } else if (prov.isInstalled(key)) {
@@ -140,8 +147,11 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
         items.append(item);
 
         if (!json) {
-            out << "  " << QString::fromStdString(app.id).leftJustified(34)
-                << status << (app.required && status == "failed" ? "  (REQUIRED)" : "")
+            out << "  " << QString::fromStdString(app.id).leftJustified(20)
+                << QString(isLocal ? "local " : "winget").leftJustified(8)
+                << status
+                << (app.required && status == "failed" ? "  (REQUIRED)" : "")
+                << (localErr.empty() ? "" : "  - " + QString::fromStdString(localErr))
                 << "\n";
         }
     }

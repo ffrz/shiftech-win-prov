@@ -1,29 +1,33 @@
-# apps/ — local installers for the USB drive
+# apps/ — local apps for the USB drive
 
-Each subfolder is one app the provisioner can install without winget. Referenced from a
-profile as `{ "id": "<folder>", "source": "local" }`.
+Each subfolder is one app the provisioner can install/deploy without winget. Referenced
+from a profile as `{ "id": "<folder>", "source": "local", "enabled": true }`.
 
 ```
 apps/
-  winrar/
-    app.json          <- manifest (committed here as a template)
-    winrar-x64-701.exe <- the actual installer (NOT committed; add it on the USB drive)
-  adobe-reader/
-    app.json
-    AcroRdrDCx64.exe
+  winrar/        app.json + winrar-x64-550.exe        (kind: installer)
+  adobe-reader/  app.json + AcroRdrDC1800920044_en_US.exe
+  7zip/          app.json + 7z2408-x64.exe   <- DOWNLOAD from 7-zip.org, /S silent
+  wu10man/       app.json + Wu10Man_2.1.0.msi
+  aact/          app.json + aact-4.0-portable.7z       (kind: portable -> %DESKTOP%\AAct)
+  kmsoffline/    app.json + kmsoffline-2.4.7.7z        (kind: portable -> %DESKTOP%\KMSOffline)
 ```
 
-`app.json` fields — see [../docs/PROFILES.md](../docs/PROFILES.md#local-installers-on-the-usb-drive):
+## The installer / archive files are NOT in git
 
-| field | meaning |
-|-------|---------|
-| `name` | display name |
-| `installer` | file next to `app.json`, **`.exe` or `.msi` only** |
-| `silentArgs` | args for a silent install (`/S`, `/qn`, `/sAll`, …) |
-| `detect.type` | `registry` / `file` / `arp` |
-| `detect.keys` | registry key paths or file paths to check |
-| `detect.name` | (arp) Add/Remove Programs display-name substring |
-| `expectedExitCodes` | success codes (default `[0, 1641, 3010]`; 3010/1641 ⇒ reboot) |
+`*.exe`, `*.msi`, `*.7z`, `*.zip` under `apps/` are gitignored. Only the `app.json`
+manifests are tracked. Put the actual files in each folder on the USB drive.
+`build-release.ps1` copies whatever is present into `dist/`.
 
-The `.exe`/`.msi` files themselves are gitignored — put them on the flash drive next to
-the manifest. `provisioner.exe drivers`/`apps` resolve `apps/` relative to the executable.
+If a manifest's `installer`/`archive` file is missing, that app is **skipped with a clear
+message** ("installer file not found: …") — it is not silently treated as installable.
+
+## Manifest reference
+
+See [../docs/PROFILES.md](../docs/PROFILES.md#local-apps-on-the-usb-drive-apps) for the
+full `app.json` schema (both `kind: installer` and `kind: portable`).
+
+## `.7z` portable apps need 7za.exe
+
+Extracting a `.7z` archive requires `tools/7za.exe` (bundled in the release) or 7-Zip
+installed on the target. `.zip` archives use the built-in `tar` and need nothing.

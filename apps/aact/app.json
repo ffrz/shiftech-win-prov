@@ -1,0 +1,13 @@
+{
+  "name": "AAct (activation tool)",
+  "kind": "portable",
+  "archive": "aact-4.0-portable.7z",
+  "extractTo": "%DESKTOP%\\AAct",
+  "flattenSingleRoot": true,
+  "shortcutExe": "AAct_x64.exe",
+  "shortcutName": "AAct",
+  "detect": {
+    "type": "folder",
+    "keys": ["%DESKTOP%\\AAct"]
+  }
+}

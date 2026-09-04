@@ -1,6 +1,7 @@
 {
   "name": "WinRAR",
-  "installer": "winrar-x64-701.exe",
+  "kind": "installer",
+  "installer": "winrar-x64-550.exe",
   "silentArgs": ["/S"],
   "detect": {
     "type": "registry",

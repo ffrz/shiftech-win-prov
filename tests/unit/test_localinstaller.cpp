@@ -92,6 +92,51 @@ private slots:
         LocalInstallerProvider p(tmp.path());
         QCOMPARE(p.isInstalled("nope"), false);
     }
+
+    void parsesPortableManifest() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("aact");
+        QDir().mkpath(dir);
+        QFile arc(QDir(dir).filePath("t.7z"));
+        arc.open(QIODevice::WriteOnly); arc.write("7z\xBC\xAF\x27\x1C"); arc.close();
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly);
+        m.write(R"({
+          "name": "AAct", "kind": "portable",
+          "archive": "t.7z", "extractTo": "%DESKTOP%\\AAct",
+          "flattenSingleRoot": true, "shortcutExe": "AAct_x64.exe",
+          "detect": { "type": "folder", "keys": ["%DESKTOP%\\AAct"] }
+        })");
+        m.close();
+
+        std::string err;
+        auto man = loadLocalAppManifest(dir, err);
+        QVERIFY2(man.has_value(), err.c_str());
+        QVERIFY(man->kind == LocalAppKind::Portable);
+        QCOMPARE(man->archiveFile.c_str(), "t.7z");
+        QVERIFY(man->flattenSingleRoot);
+        QCOMPARE(man->shortcutExe.c_str(), "AAct_x64.exe");
+        QCOMPARE(man->detectType.c_str(), "folder");
+    }
+
+    void portableRejectsNonArchive() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("bad");
+        QDir().mkpath(dir);
+        QFile a(QDir(dir).filePath("x.exe")); a.open(QIODevice::WriteOnly); a.write("MZ"); a.close();
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly);
+        m.write(R"({ "name":"Bad", "kind":"portable", "archive":"x.exe", "extractTo":"%DESKTOP%\\x" })");
+        m.close();
+        std::string err;
+        QVERIFY(!loadLocalAppManifest(dir, err).has_value());
+    }
+
+    void expandsPathTokens() {
+        const QString home = QDir::homePath();
+        QVERIFY(expandPath("%USERPROFILE%\\Foo").startsWith(home));
+        QVERIFY(!expandPath("%DESKTOP%").contains('%'));
+    }
 };
 
 QTEST_MAIN(TestLocalInstaller)

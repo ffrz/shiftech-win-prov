@@ -72,43 +72,79 @@ Unknown top-level keys, unknown tweak ids, duplicate app ids, or a `local` app w
 
 ---
 
-## Local installers on the USB drive
+## Local apps on the USB drive (`apps/`)
 
 ```
 apps/
-  winrar/
-    app.json
-    winrar-x64-701.exe
-  adobe-reader/
-    app.json
-    AcroRdrDC.exe
+  winrar/        app.json + winrar-x64-550.exe       (kind: installer)
+  adobe-reader/  app.json + AcroRdrDC....exe          (kind: installer)
+  7zip/          app.json + 7z2408-x64.exe            (kind: installer)
+  wu10man/       app.json + Wu10Man_2.1.0.msi         (kind: installer)
+  aact/          app.json + aact-4.0-portable.7z      (kind: portable)
+  kmsoffline/    app.json + kmsoffline-2.4.7.7z       (kind: portable)
 ```
 
-`apps/<id>/app.json`:
+The folder name is the app **id**. Profiles reference it as
+`{ "id": "<folder>", "source": "local", "enabled": true }`.
+The installer / archive files are **gitignored** — you drop them in on the USB drive.
+A missing installer/archive or a bad `app.json` ⇒ the app is **skipped with a clear
+reason** (not silently "would install").
+
+### `kind: "installer"` — run an .exe/.msi
 
 ```json
 {
   "name": "WinRAR",
-  "installer": "winrar-x64-701.exe",
+  "kind": "installer",
+  "installer": "winrar-x64-550.exe",
   "silentArgs": ["/S"],
   "detect": {
     "type": "registry",
     "keys": ["HKLM\\SOFTWARE\\WinRAR", "HKLM\\SOFTWARE\\WOW6432Node\\WinRAR"]
   },
-  "expectedExitCodes": [0, 3010]
+  "expectedExitCodes": [0]
 }
 ```
 
 | Field | Meaning |
 |-------|---------|
-| `installer` | file next to `app.json` (relative). **Only `.exe` / `.msi`** — no scripts |
-| `silentArgs` | args for a silent install (`/S`, `/qn`, `/sAll`, …) |
-| `detect.type` | `"registry"` (any listed key exists) or `"file"` (any listed path exists) or `"arp"` (Add/Remove Programs display-name substring in `detect.name`) |
-| `expectedExitCodes` | codes treated as success (default `[0, 1641, 3010]`; `3010`/`1641` ⇒ reboot) |
+| `installer` | file next to `app.json`. **`.exe` or `.msi` only** |
+| `silentArgs` | silent-install args (`/S`, `/sAll /rs /msi EULA_ACCEPT=YES`, …). MSI always gets `/qn /norestart` too |
+| `detect.type` | `registry` (a listed key exists) · `file` (a listed path exists) · `arp` (Add/Remove Programs display-name contains `detect.name`) |
+| `expectedExitCodes` | success codes (default `[0, 1641, 3010]`; `3010`/`1641` ⇒ reboot) |
 
-`LocalInstallerProvider` reads these; MSI is run via `msiexec /i "<file>" /qn`, EXE via the
-installer + `silentArgs`. Never runs anything that isn't the declared installer. Missing
-`app.json` or installer file ⇒ that app is skipped with a clear reason.
+### `kind: "portable"` — extract an archive to a folder
+
+For tools that ship as a `.zip` / `.7z` and just need unpacking (activators, portable
+apps). `.zip` uses the built-in `tar`; **`.7z` needs `7za.exe`** — bundled in the release
+(`tools/7za.exe`, see [tools/README.md](../tools/README.md)), or 7-Zip installed on the
+target.
+
+```json
+{
+  "name": "KMSOffline (activation tool)",
+  "kind": "portable",
+  "archive": "kmsoffline-2.4.7.7z",
+  "extractTo": "%DESKTOP%\\KMSOffline",
+  "flattenSingleRoot": true,
+  "shortcutExe": "KMSoffline_x64.exe",
+  "shortcutName": "KMSOffline",
+  "detect": { "type": "folder", "keys": ["%DESKTOP%\\KMSOffline"] }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `archive` | `.zip` or `.7z` next to `app.json` |
+| `extractTo` | destination; supports `%USERPROFILE%`, `%DESKTOP%`, `%PUBLIC%`, `%PUBLIC_DESKTOP%`, `%PROGRAMDATA%`, `%PROGRAMFILES%`, and generic `%ENV%` |
+| `flattenSingleRoot` | if the archive is one wrapper folder, hoist its contents up into `extractTo` |
+| `shortcutExe` | optional; path (relative to `extractTo`) — a Desktop shortcut is created to it |
+| `shortcutName` | shortcut file name (default = `name`) |
+| `detect.type: "folder"` | "installed" = `extractTo` (or a listed path) exists and is non-empty |
+
+`LocalInstallerProvider` never runs anything that isn't the declared installer/archive
+tool. `provisioner reset` does **not** auto-undo local apps — remove installers via
+Add/Remove Programs, portable folders by deleting them.
 
 ---
 

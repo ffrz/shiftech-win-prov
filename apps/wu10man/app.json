@@ -1,0 +1,11 @@
+{
+  "name": "WuMgr / Wu10Man (Windows Update control)",
+  "kind": "installer",
+  "installer": "Wu10Man_2.1.0.msi",
+  "silentArgs": [],
+  "detect": {
+    "type": "arp",
+    "name": "Wu10Man"
+  },
+  "expectedExitCodes": [0, 3010, 1641]
+}

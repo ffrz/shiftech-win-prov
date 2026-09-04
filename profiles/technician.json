@@ -8,12 +8,15 @@
   },
 
   "applications": [
-    { "id": "7zip",         "source": "winget", "wingetId": "7zip.7zip",                    "enabled": true,  "required": true },
-    { "id": "chrome",       "source": "winget", "wingetId": "Google.Chrome",                "enabled": true,  "required": true },
-    { "id": "cpuz",         "source": "winget", "wingetId": "CPUID.CPU-Z",                  "enabled": true,  "required": false },
-    { "id": "hwmonitor",    "source": "winget", "wingetId": "CPUID.HWMonitor",              "enabled": true,  "required": false },
+    { "id": "7zip",         "source": "local",                                          "enabled": true,  "required": true },
+    { "id": "chrome",       "source": "winget", "wingetId": "Google.Chrome",             "enabled": true,  "required": true },
+    { "id": "winrar",       "source": "local",                                          "enabled": true,  "required": false },
+    { "id": "wu10man",      "source": "local",                                          "enabled": true,  "required": false },
+    { "id": "cpuz",         "source": "winget", "wingetId": "CPUID.CPU-Z",               "enabled": true,  "required": false },
+    { "id": "hwmonitor",    "source": "winget", "wingetId": "CPUID.HWMonitor",           "enabled": true,  "required": false },
     { "id": "crystaldisk",  "source": "winget", "wingetId": "CrystalDewWorld.CrystalDiskInfo", "enabled": true, "required": false },
-    { "id": "sysinternals", "source": "winget", "wingetId": "Microsoft.Sysinternals.Suite", "enabled": false, "required": false }
+    { "id": "aact",         "source": "local",                                          "enabled": false, "required": false },
+    { "id": "kmsoffline",   "source": "local",                                          "enabled": false, "required": false }
   ],
 
   "config": [

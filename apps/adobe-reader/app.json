@@ -1,6 +1,7 @@
 {
-  "name": "Adobe Acrobat Reader",
-  "installer": "AcroRdrDCx64.exe",
+  "name": "Adobe Acrobat Reader DC",
+  "kind": "installer",
+  "installer": "AcroRdrDC1800920044_en_US.exe",
   "silentArgs": ["/sAll", "/rs", "/msi", "EULA_ACCEPT=YES"],
   "detect": {
     "type": "arp",

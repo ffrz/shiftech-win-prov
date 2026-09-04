@@ -1,0 +1,11 @@
+{
+  "name": "7-Zip",
+  "kind": "installer",
+  "installer": "7z2408-x64.exe",
+  "silentArgs": ["/S"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\7-Zip", "HKLM\\SOFTWARE\\WOW6432Node\\7-Zip"]
+  },
+  "expectedExitCodes": [0]
+}

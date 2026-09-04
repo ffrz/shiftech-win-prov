@@ -379,7 +379,13 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
             ar.source = isLocal ? "local" : "winget";
             ar.wingetId = isLocal ? "" : app.wingetId;
 
-            if (!isLocal && !wingetOk) {
+            std::string localErr;
+            if (isLocal) localErr = local.manifestError(app.id);
+
+            if (isLocal && !localErr.empty()) {
+                ar.status = "skipped";
+                ev("application", Severity::Warning, app.id + ": " + localErr, prog);
+            } else if (!isLocal && !wingetOk) {
                 ar.status = "skipped_no_winget";
                 ev("application", Severity::Warning, app.id + ": skipped (no winget)", prog);
             } else if (prov.isInstalled(key)) {

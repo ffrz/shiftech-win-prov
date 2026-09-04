@@ -128,11 +128,19 @@ foreach ($exe in $exes) {
     if ($LASTEXITCODE -ne 0) { throw "windeployqt failed for $exe ($LASTEXITCODE)" }
 }
 
-# profiles + app manifests + empty runtime dirs
+# profiles + app manifests + tools + empty runtime dirs
 Copy-Item (Join-Path $RepoRoot 'profiles') -Destination $StageDir -Recurse
 if (Test-Path (Join-Path $RepoRoot 'apps')) {
     Copy-Item (Join-Path $RepoRoot 'apps') -Destination $StageDir -Recurse
-    # keep only manifests + README in the staged copy; installers are added on the USB drive
+    # installers/archives already in apps\<id>\ are copied too; add more on the USB drive
+}
+# 7za.exe for extracting .7z portable apps (see tools\README.md)
+$sevenZa = Join-Path $RepoRoot 'tools\7za.exe'
+if (Test-Path $sevenZa) {
+    Copy-Item $sevenZa -Destination $StageDir
+    Write-Host "   bundled 7za.exe"
+} else {
+    Write-Host "   NOTE: tools\7za.exe not found - .7z portable apps will need 7-Zip on the target"
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'cache')  | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'logs')   | Out-Null
