@@ -11,17 +11,19 @@
 
   "applications": [
     { "id": "chrome",        "source": "winget", "wingetId": "Google.Chrome",         "enabled": true,  "required": true },
-    { "id": "7zip",          "source": "winget", "wingetId": "7zip.7zip",              "enabled": true,  "required": true },
+    { "id": "7zip",          "source": "winget", "wingetId": "7zip.7zip",             "enabled": true,  "required": true },
     { "id": "winrar",        "source": "local",                                       "enabled": true,  "required": false },
     { "id": "adobe-reader",  "source": "local",                                       "enabled": true,  "required": false },
-    { "id": "vlc",           "source": "winget", "wingetId": "VideoLAN.VLC",           "enabled": false, "required": false },
-    { "id": "sumatra",       "source": "winget", "wingetId": "SumatraPDF.SumatraPDF",  "enabled": false, "required": false }
+    { "id": "Zoom.Zoom",     "source": "winget",                                      "enabled": true,  "required": false },
+    { "id": "aact",          "source": "local",                                       "enabled": true,  "required": false },
+    { "id": "kmsoffline",    "source": "local",                                       "enabled": true,  "required": false },
+    { "id": "wu10man",       "source": "local",                                       "enabled": true,  "required": false }
   ],
 
   "config": [
     { "id": "disable-password-expiry", "enabled": true },
     { "id": "clean-taskbar-pins",      "enabled": true },
     { "id": "show-file-extensions",    "enabled": true },
-    { "id": "clean-startup-items",     "enabled": false }
+    { "id": "clean-startup-items",     "enabled": true }
   ]
 }

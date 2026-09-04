@@ -1,0 +1,26 @@
+{
+  "name": "lengkap",
+  "description": "Profil komplit dengan semua contoh config tweak dan aplikasi Winget yang umum.",
+  "drivers": {
+    "enabled": true
+  },
+  "config": [
+    { "id": "show-file-extensions", "enabled": true },
+    { "id": "show-hidden-files", "enabled": true },
+    { "id": "disable-hibernate", "enabled": true },
+    { "id": "set-power-high-performance", "enabled": true },
+    { "id": "set-timezone", "enabled": true, "args": { "id": "SE Asia Standard Time" } },
+    { "id": "enable-rdp", "enabled": false },
+    { "id": "disable-password-expiry", "enabled": true }
+  ],
+  "applications": [
+    { "id": "Google.Chrome", "source": "winget", "enabled": true, "required": true },
+    { "id": "Mozilla.Firefox", "source": "winget", "enabled": true },
+    { "id": "7zip.7zip", "source": "winget", "enabled": true },
+    { "id": "VideoLAN.VLC", "source": "winget", "enabled": true },
+    { "id": "Microsoft.VSCode", "source": "winget", "enabled": true },
+    { "id": "Notepad++.Notepad++", "source": "winget", "enabled": true },
+    { "id": "Git.Git", "source": "winget", "enabled": false },
+    { "id": "Zoom.Zoom", "source": "winget", "enabled": true }
+  ]
+}
