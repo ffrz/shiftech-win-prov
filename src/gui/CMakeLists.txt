@@ -12,3 +12,6 @@ set_shiftech_warnings(shiftech_gui_lib)
 qt_add_executable(shiftech_gui WIN32 main.cpp ${SHIFTECH_APP_ICON_RC})
 target_link_libraries(shiftech_gui PRIVATE shiftech_gui_lib)
 set_shiftech_warnings(shiftech_gui)
+
+# Ship the GUI as app.exe (the CMake target keeps its unique name for tests etc.)
+set_target_properties(shiftech_gui PROPERTIES OUTPUT_NAME "app")

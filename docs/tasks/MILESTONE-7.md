@@ -60,7 +60,7 @@ the "GUI" section of `../../initial-prompt.md`, and [../BUILD.md](../BUILD.md) A
 
 ## Exit criteria — DONE (2026-09-03)
 
-- [x] `shiftech_gui.exe` builds (`-DSHIFTECH_BUILD_GUI=ON`), launches, and renders the
+- [x] `app.exe` builds (`-DSHIFTECH_BUILD_GUI=ON`), launches, and renders the
       dashboard: System panel (edition/build/arch/elevation/winget/pnputil), profile
       picker from `profiles/`, Dry run + Skip toggles, Drivers/Applications progress bars,
       Current task label, Start/Cancel/Save-report buttons, colour-coded log pane, report

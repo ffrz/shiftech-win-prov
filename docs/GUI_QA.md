@@ -1,7 +1,7 @@
 # GUI manual QA checklist
 
 Build: `scripts\build-release.ps1` (or `cmake -S . -B build -DSHIFTECH_BUILD_GUI=ON`).
-Run: `build\shiftech_gui.exe` (or `scripts\run-app.ps1 -Gui`).
+Run: `build\app.exe` (or `scripts\run-app.ps1 -Gui`).
 
 The GUI is a **picker, not an editor**. It never changes profile settings — a technician
 picks a profile and ticks which items to run on this PC. To add profiles or change their

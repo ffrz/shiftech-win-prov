@@ -27,7 +27,7 @@ the executable self-contained without adding vendored YAML parsing dependencies.
 **Context:** Targets include Windows 7 (x86 + x64) and Windows 8 x64. Qt 6.6 officially
 requires Windows 10 1809+. A dedicated Win7 VM was not available to test on during M7.
 **Decision:** **Option (c).** On Windows 7/8, ship **`provisioner.exe` (CLI) only**. The
-Qt 6 Widgets GUI (`shiftech_gui.exe`) targets Windows 10/11.
+Qt 6 Widgets GUI (`app.exe`) targets Windows 10/11.
 - `shiftech_core` + the CLI stay on the smallest practical Qt surface (Core + Network) so
   a future static or Qt-5.15 CLI build for Win7 remains a small change.
 - The CLI already covers 100% of functionality (`scan`, `drivers scan/resolve/install`,

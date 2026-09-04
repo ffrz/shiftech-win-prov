@@ -34,7 +34,7 @@
 build/                     # gitignored
   shiftech_core.a
   provisioner.exe
-  shiftech_gui.exe         # if SHIFTECH_BUILD_GUI=ON
+  app.exe         # if SHIFTECH_BUILD_GUI=ON
   shiftech_tests.exe       # if SHIFTECH_BUILD_TESTS=ON
 ```
 
@@ -60,7 +60,7 @@ scripts\build-release.ps1 -NoGui -NoTests # CLI only, fast
 # Run it (build tree or the portable folder)
 scripts\run-app.ps1 scan
 scripts\run-app.ps1 provision --profile standard --dry-run
-scripts\run-app.ps1 -Gui                              # launch shiftech_gui.exe
+scripts\run-app.ps1 -Gui                              # launch app.exe
 scripts\run-app.ps1 -Portable provision --profile standard   # from dist\
 scripts\run-app.ps1 -Elevated provision --profile standard   # UAC prompt (real install)
 scripts\run-app.ps1 -Build drivers resolve           # build first, then run
@@ -100,7 +100,7 @@ ctest --test-dir build --output-on-failure
 ## Deploying the built exe
 
 For a technician machine, run `windeployqt` from the chosen Qt kit against
-`provisioner.exe` / `shiftech_gui.exe` to gather Qt DLLs, or link Qt statically (evaluate
+`provisioner.exe` / `app.exe` to gather Qt DLLs, or link Qt statically (evaluate
 in a later milestone). `pnputil` and `winget` are expected to already exist on the target.
 
 ## Running

@@ -8,7 +8,7 @@
 
         dist\ShiftechWinProvisioner\
             provisioner.exe
-            shiftech_gui.exe          (unless -NoGui)
+            app.exe          (unless -NoGui)
             <Qt runtime DLLs + plugins>   (via windeployqt)
             profiles\*.json
             cache\                    (empty - populated by 'drivers resolve --download')
@@ -111,7 +111,7 @@ if (Test-Path $StageDir) { Remove-Item -Recurse -Force $StageDir }
 New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
 $exes = @('provisioner.exe')
-if (-not $NoGui) { $exes += 'shiftech_gui.exe' }
+if (-not $NoGui) { $exes += 'app.exe' }
 foreach ($exe in $exes) {
     $src = Join-Path $BuildDir $exe
     Assert-Path $src "built $exe"
@@ -160,7 +160,7 @@ This folder is self-contained. Copy it anywhere (including a USB drive) and run:
 
 GUI (Windows 10/11 only - see ADR-0003):
 
-  shiftech_gui.exe
+  app.exe
 
 Local app installers: put the .exe/.msi next to its app.json in apps\<id>\
 (e.g. apps\winrar\winrar-x64-701.exe). Profiles reference them by folder id.

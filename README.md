@@ -18,7 +18,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=<Qt> -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_
 cmake --build build
 build\provisioner.exe scan
 build\provisioner.exe provision --profile standard --dry-run
-cmake -S . -B build -DSHIFTECH_BUILD_GUI=ON && cmake --build build   # then build\shiftech_gui.exe
+cmake -S . -B build -DSHIFTECH_BUILD_GUI=ON && cmake --build build   # then build\app.exe
 ```
 Toolchain paths for this machine: [docs/BUILD.md](docs/BUILD.md). Commands: [docs/CLI.md](docs/CLI.md).
 

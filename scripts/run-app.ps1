@@ -3,14 +3,14 @@
     Run Shiftech Win Provisioner (CLI or GUI) from the build tree or a portable folder.
 
 .DESCRIPTION
-    Wraps provisioner.exe / shiftech_gui.exe with the right PATH so the Qt DLLs resolve.
+    Wraps provisioner.exe / app.exe with the right PATH so the Qt DLLs resolve.
     By default it runs the freshly built exe under build\; with -Portable it runs the
     staged copy under dist\ShiftechWinProvisioner\ (which is fully self-contained).
 
     Anything after the recognised switches is passed straight to provisioner.exe.
 
 .PARAMETER Gui
-    Launch shiftech_gui.exe instead of the CLI. Ignores CLI args.
+    Launch app.exe instead of the CLI. Ignores CLI args.
 
 .PARAMETER Portable
     Use dist\ShiftechWinProvisioner\ instead of build\.
@@ -70,7 +70,7 @@ if (-not $Portable) {
     $env:PATH = "$QtRoot\bin;$MinGW;$env:PATH"
 }
 
-$exeName = if ($Gui) { 'shiftech_gui.exe' } else { 'provisioner.exe' }
+$exeName = if ($Gui) { 'app.exe' } else { 'provisioner.exe' }
 $exe = Join-Path $appDir $exeName
 if (-not (Test-Path $exe)) {
     throw "$exeName not found in $appDir" + $(if ($Gui) { "  (built with -DSHIFTECH_BUILD_GUI=ON?)" } else { "" })
