@@ -1,7 +1,7 @@
 {
   "name": "Microsoft Office 2010 (ProPlus, volume)",
   "kind": "iso",
-  "image": "office-2010-proplus-x86.iso",
+  "image": "office-2010.iso",
   "setup": "setup.exe",
   "setupArgs": ["/config", "%APP%\\config.xml"],
   "detect": {

@@ -1,7 +1,7 @@
 {
   "name": "Microsoft Office 2016 (ProPlus VL, MSI)",
   "kind": "iso",
-  "image": "office-2016-proplusvl-x86.iso",
+  "image": "office-2016.iso",
   "setup": "setup.exe",
   "setupArgs": ["/config", "%APP%\\config.xml"],
   "detect": {

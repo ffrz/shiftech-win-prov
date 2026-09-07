@@ -1,7 +1,7 @@
 {
   "name": "Microsoft Office 2013 (ProPlus, volume)",
   "kind": "iso",
-  "image": "office-2013-proplus-x86.iso",
+  "image": "office-2013.iso",
   "setup": "setup.exe",
   "setupArgs": ["/config", "%APP%\\config.xml"],
   "detect": {

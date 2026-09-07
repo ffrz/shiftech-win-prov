@@ -1,7 +1,7 @@
 {
   "name": "Microsoft Office 2019 (ProPlus 2019 Volume, C2R via ODT)",
   "kind": "iso",
-  "image": "office-2019-proplus2019volume.iso",
+  "image": "office-2019.iso",
   "setup": "setup.exe",
   "setupFrom": "app",
   "setupArgs": ["/configure", "%APP%\\configuration.xml"],
