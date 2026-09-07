@@ -132,6 +132,89 @@ private slots:
         QVERIFY(!loadLocalAppManifest(dir, err).has_value());
     }
 
+    void parsesIsoManifest() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("office-2016");
+        QDir().mkpath(dir);
+        QFile iso(QDir(dir).filePath("o.iso"));
+        iso.open(QIODevice::WriteOnly); iso.write("CD001"); iso.close();
+        QFile cfg(QDir(dir).filePath("config.xml"));
+        cfg.open(QIODevice::WriteOnly); cfg.write("<Configuration/>"); cfg.close();
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly);
+        m.write(R"({
+          "name": "Office 2016", "kind": "iso",
+          "image": "o.iso", "setup": "setup.exe",
+          "setupArgs": ["/config", "%APP%\\config.xml"],
+          "detect": { "type": "registry",
+                      "keys": ["HKLM\\SOFTWARE\\Microsoft\\Office\\16.0\\Common\\InstallRoot"] },
+          "expectedExitCodes": [0, 3010]
+        })");
+        m.close();
+
+        std::string err;
+        auto man = loadLocalAppManifest(dir, err);
+        QVERIFY2(man.has_value(), err.c_str());
+        QVERIFY(man->kind == LocalAppKind::Iso);
+        QCOMPARE(man->imageFile.c_str(), "o.iso");
+        QCOMPARE(man->isoSetup.c_str(), "setup.exe");
+        QVERIFY(!man->isoSetupFromApp);
+        QCOMPARE(man->isoSetupArgs.size(), size_t(2));
+        QCOMPARE(man->isoExitCodes.size(), size_t(2));
+    }
+
+    void isoRejectsNonImage() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("bad");
+        QDir().mkpath(dir);
+        QFile a(QDir(dir).filePath("x.zip")); a.open(QIODevice::WriteOnly); a.write("PK"); a.close();
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly);
+        m.write(R"({ "name":"Bad", "kind":"iso", "image":"x.zip" })");
+        m.close();
+        std::string err;
+        QVERIFY(!loadLocalAppManifest(dir, err).has_value());
+        QVERIFY(QString::fromStdString(err).contains(".iso or .img"));
+    }
+
+    void isoMissingImageRejected() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("gone");
+        QDir().mkpath(dir);
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly);
+        m.write(R"({ "name":"Gone", "kind":"iso", "image":"nowhere.iso" })");
+        m.close();
+        std::string err;
+        QVERIFY(!loadLocalAppManifest(dir, err).has_value());
+        QVERIFY(QString::fromStdString(err).contains("iso file not found"));
+    }
+
+    void isoSetupFromAppNeedsTheBundledSetup() {
+        QTemporaryDir tmp;
+        const QString dir = QDir(tmp.path()).filePath("office-2019");
+        QDir().mkpath(dir);
+        QFile iso(QDir(dir).filePath("o.iso"));
+        iso.open(QIODevice::WriteOnly); iso.write("CD001"); iso.close();
+        const char* manifest = R"({
+          "name": "Office 2019", "kind": "iso", "image": "o.iso",
+          "setup": "setup.exe", "setupFrom": "app",
+          "setupArgs": ["/configure", "%APP%\\configuration.xml"]
+        })";
+        QFile m(QDir(dir).filePath("app.json"));
+        m.open(QIODevice::WriteOnly); m.write(manifest); m.close();
+
+        std::string err;
+        QVERIFY(!loadLocalAppManifest(dir, err).has_value());  // no bundled setup.exe yet
+        QVERIFY(QString::fromStdString(err).contains("setup program not found"));
+
+        QFile s(QDir(dir).filePath("setup.exe"));
+        s.open(QIODevice::WriteOnly); s.write("MZ"); s.close();
+        auto man = loadLocalAppManifest(dir, err);
+        QVERIFY2(man.has_value(), err.c_str());
+        QVERIFY(man->isoSetupFromApp);
+    }
+
     void expandsPathTokens() {
         const QString home = QDir::homePath();
         QVERIFY(expandPath("%USERPROFILE%\\Foo").startsWith(home));

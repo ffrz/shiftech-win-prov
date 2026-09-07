@@ -164,8 +164,9 @@ std::optional<LocalAppManifest> loadLocalAppManifest(const QString& appFolder,
     const QString kind = o.value("kind").toString("installer").toLower();
     if (kind == "portable") m.kind = LocalAppKind::Portable;
     else if (kind == "installer") m.kind = LocalAppKind::Installer;
+    else if (kind == "iso") m.kind = LocalAppKind::Iso;
     else {
-        error = id.toStdString() + ": kind must be 'installer' or 'portable'";
+        error = id.toStdString() + ": kind must be 'installer', 'portable' or 'iso'";
         return std::nullopt;
     }
 
@@ -199,6 +200,41 @@ std::optional<LocalAppManifest> loadLocalAppManifest(const QString& appFolder,
         const QJsonArray ec = o.value("expectedExitCodes").toArray();
         if (ec.isEmpty()) m.expectedExitCodes = {0, 1641, 3010};
         else for (const auto& v : ec) m.expectedExitCodes.push_back(v.toInt());
+    } else if (m.kind == LocalAppKind::Iso) {
+        m.imageFile = o.value("image").toString().toStdString();
+        if (m.imageFile.empty()) {
+            error = id.toStdString() + ": iso manifest has no 'image'";
+            return std::nullopt;
+        }
+        const QString ext =
+            QFileInfo(QString::fromStdString(m.imageFile)).suffix().toLower();
+        if (ext != "iso" && ext != "img") {
+            error = id.toStdString() + ": image must be .iso or .img";
+            return std::nullopt;
+        }
+        if (!QFileInfo::exists(
+                QDir(appFolder).filePath(QString::fromStdString(m.imageFile)))) {
+            error = id.toStdString() + ": iso file not found: " + m.imageFile;
+            return std::nullopt;
+        }
+        m.isoSetup = o.value("setup").toString("setup.exe").toStdString();
+        const QString from = o.value("setupFrom").toString("iso").toLower();
+        if (from != "iso" && from != "app") {
+            error = id.toStdString() + ": setupFrom must be 'iso' or 'app'";
+            return std::nullopt;
+        }
+        m.isoSetupFromApp = (from == "app");
+        if (m.isoSetupFromApp &&
+            !QFileInfo::exists(
+                QDir(appFolder).filePath(QString::fromStdString(m.isoSetup)))) {
+            error = id.toStdString() + ": setup program not found in app folder: " + m.isoSetup;
+            return std::nullopt;
+        }
+        for (const auto& v : o.value("setupArgs").toArray())
+            m.isoSetupArgs.push_back(v.toString().toStdString());
+        const QJsonArray ec = o.value("expectedExitCodes").toArray();
+        if (ec.isEmpty()) m.isoExitCodes = {0, 1641, 3010};
+        else for (const auto& v : ec) m.isoExitCodes.push_back(v.toInt());
     } else {
         m.archiveFile = o.value("archive").toString().toStdString();
         if (m.archiveFile.empty()) {
@@ -299,8 +335,12 @@ InstallResult LocalInstallerProvider::install(const std::string& id, const Insta
         return r;
     }
     const QString folder = folderFor(id);
-    return m->kind == LocalAppKind::Portable ? deployPortable(*m, folder)
-                                             : runInstaller(*m, folder);
+    switch (m->kind) {
+        case LocalAppKind::Portable:  return deployPortable(*m, folder);
+        case LocalAppKind::Iso:       return runFromIso(*m, folder);
+        case LocalAppKind::Installer: break;
+    }
+    return runInstaller(*m, folder);
 }
 
 InstallResult LocalInstallerProvider::runInstaller(const LocalAppManifest& m,
@@ -413,6 +453,89 @@ InstallResult LocalInstallerProvider::deployPortable(const LocalAppManifest& m,
     r.ok = true;
     r.log = "extracted to " + dest.toStdString() +
             (m.shortcutExe.empty() ? "" : "  (+ Desktop shortcut)");
+    return r;
+}
+
+InstallResult LocalInstallerProvider::runFromIso(const LocalAppManifest& m,
+                                                 const QString& folder) {
+    InstallResult r;
+    const QString image =
+        QDir::toNativeSeparators(QDir(folder).filePath(QString::fromStdString(m.imageFile)));
+
+    // Mount, capture the drive letter, run setup, dismount - all in one elevated
+    // PowerShell so the volume is guaranteed to be released even if setup throws.
+    // Emits "DRIVE=X:" then "EXIT=<code>" on stdout for us to parse.
+    QStringList setupArgs;
+    for (const auto& a : m.isoSetupArgs) {
+        QString s = QString::fromStdString(a);
+        s.replace("%APP%", QDir::toNativeSeparators(folder), Qt::CaseInsensitive);
+        // %ISO% is filled in inside PowerShell once the letter is known
+        setupArgs << s;
+    }
+    // PowerShell single-quoted list: 'a','b' ; %ISO% -> "$root" expansion done in-script
+    QStringList psQuoted;
+    for (const QString& s : setupArgs) {
+        QString q = s;
+        q.replace("'", "''");
+        if (q.contains("%ISO%", Qt::CaseInsensitive)) {
+            q.replace("%ISO%", "' + $root + '", Qt::CaseInsensitive);
+            psQuoted << "('" + q + "')";
+        } else {
+            psQuoted << "'" + q + "'";
+        }
+    }
+    const QString argExpr = psQuoted.isEmpty() ? QString() : psQuoted.join(",");
+
+    // Where does setup.exe live: on the mounted image, or bundled in apps/<id>/ ?
+    QString setupExpr;  // a PowerShell expression that evaluates to the setup path
+    if (m.isoSetupFromApp) {
+        QString p = QDir::toNativeSeparators(
+            QDir(folder).filePath(QString::fromStdString(m.isoSetup)));
+        p.replace("'", "''");
+        setupExpr = "'" + p + "'";
+    } else {
+        QString rel = QDir::fromNativeSeparators(QString::fromStdString(m.isoSetup));
+        rel.replace("'", "''");
+        setupExpr = "(Join-Path $root '" + rel + "')";
+    }
+
+    const QString script = QStringLiteral(
+        "$ErrorActionPreference='Stop';"
+        "$img = Mount-DiskImage -ImagePath '%1' -PassThru;"
+        "try {"
+        "  $vol = ($img | Get-Volume);"
+        "  $root = $vol.DriveLetter + ':\\';"
+        "  Write-Output ('DRIVE=' + $vol.DriveLetter + ':');"
+        "  $setup = %2;"
+        "  if (-not (Test-Path $setup)) { throw ('setup not found: ' + $setup) }"
+        "  $p = Start-Process -FilePath $setup -ArgumentList @(%3) -Wait -PassThru -WindowStyle Hidden;"
+        "  Write-Output ('EXIT=' + $p.ExitCode);"
+        "} finally {"
+        "  Dismount-DiskImage -ImagePath '%1' | Out-Null;"
+        "}")
+        .arg(image, setupExpr, argExpr);
+
+    ProcOut o = runTool("powershell",
+                        {"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                         "-Command", script},
+                        folder, 1800000);  // Office installs are slow: 30 min ceiling
+    r.log = o.out.left(600).toStdString();
+    if (o.timedOut) {
+        r.ok = false;
+        return r;
+    }
+
+    // Prefer the inner EXIT= code; fall back to PowerShell's own exit code.
+    int inner = o.code;
+    for (const QString& line : o.out.split('\n')) {
+        const QString t = line.trimmed();
+        if (t.startsWith("EXIT=")) inner = t.mid(5).toInt();
+    }
+    r.exitCode = inner;
+    r.ok = std::find(m.isoExitCodes.begin(), m.isoExitCodes.end(), inner) !=
+           m.isoExitCodes.end();
+    if (r.ok && (inner == 3010 || inner == 1641)) r.log += "  (reboot required)";
+    if (!r.ok && r.log.empty()) r.log = "iso setup failed (exit " + std::to_string(inner) + ")";
     return r;
 }
 

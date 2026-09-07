@@ -11,6 +11,7 @@ namespace shiftech::core::applications {
 enum class LocalAppKind {
     Installer,   // .exe / .msi -> run it silently
     Portable,    // .zip / .7z  -> extract to a folder, optional shortcut
+    Iso,         // .iso / .img -> mount, run setup, dismount (e.g. MS Office volume ISOs)
 };
 
 // The parsed apps/<id>/app.json manifest.
@@ -23,6 +24,17 @@ struct LocalAppManifest {
     std::string installerFile;    // relative to the app folder; .exe or .msi
     std::vector<std::string> silentArgs;
     std::vector<int> expectedExitCodes;    // default {0, 1641, 3010}
+
+    // kind == Iso
+    std::string imageFile;        // relative; .iso / .img  (mounted read-only)
+    std::string isoSetup;         // setup program to run (default "setup.exe")
+    bool isoSetupFromApp = false; // false: isoSetup is relative to the mounted image root
+                                  // true:  isoSetup is relative to apps/<id>/ (e.g. a
+                                  //        bundled ODT setup.exe), image only supplies payload
+    std::vector<std::string> isoSetupArgs;  // args after the mount letter is substituted
+                                            // "%ISO%" in an arg -> the mounted drive root
+                                            // "%APP%" in an arg -> the apps/<id>/ folder
+    std::vector<int> isoExitCodes;          // default {0, 1641, 3010}
 
     // kind == Portable
     std::string archiveFile;      // relative; .zip / .7z
@@ -72,6 +84,7 @@ private:
     QString folderFor(const std::string& id) const;
     InstallResult runInstaller(const LocalAppManifest& m, const QString& folder);
     InstallResult deployPortable(const LocalAppManifest& m, const QString& folder);
+    InstallResult runFromIso(const LocalAppManifest& m, const QString& folder);
 };
 
 } // namespace shiftech::core::applications
