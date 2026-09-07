@@ -4,7 +4,8 @@ A profile is a **checklist** a technician picks before a run. Three sections, ea
 individually toggleable (`enabled`), mirroring the DriverPack-style workflow:
 
 - **drivers** — how to resolve drivers (provider chain), plus per-device include/exclude
-- **applications** — winget packages and/or local installers from the USB drive
+- **applications** — local installers from the USB drive, each with an optional winget
+  fallback (local is tried first)
 - **config** — tested Windows tweaks (clean taskbar, disable password expiry, …)
 
 Shipped in `profiles/`, loaded by `ProfileLoader`, chosen with `--profile <name>`
@@ -27,11 +28,11 @@ Shipped in `profiles/`, loaded by `ProfileLoader`, chosen with `--profile <name>
   },
 
   "applications": [
-    { "id": "Google.Chrome",   "source": "winget", "wingetId": "Google.Chrome",  "enabled": true,  "required": true },
-    { "id": "7zip",            "source": "winget", "wingetId": "7zip.7zip",       "enabled": true,  "required": true },
-    { "id": "winrar",          "source": "local",  "enabled": true,  "required": false },
-    { "id": "adobe-reader",    "source": "local",  "enabled": true,  "required": false },
-    { "id": "vlc",             "source": "winget", "wingetId": "VideoLAN.VLC",    "enabled": false, "required": false }
+    { "id": "chrome",       "local": "chrome", "winget": "Google.Chrome", "enabled": true,  "required": true },
+    { "id": "zoom",         "local": "zoom",   "winget": "Zoom.Zoom",     "enabled": true,  "required": false },
+    { "id": "7zip",         "local": "7zip",                              "enabled": true,  "required": true },
+    { "id": "winrar",       "local": "winrar",                            "enabled": true,  "required": false },
+    { "id": "adobe-reader", "local": "adobe-reader",                      "enabled": true,  "required": false }
   ],
 
   "config": [
@@ -52,13 +53,25 @@ Shipped in `profiles/`, loaded by `ProfileLoader`, chosen with `--profile <name>
 | `exclude` | Hardware/Instance IDs to leave alone even if they need a driver |
 
 ### `applications[]`
+
+One entry, up to **two sources**. The provisioner tries `local` first and only falls
+back to `winget` when the local installer is absent or fails.
+
 | Field | Meaning |
 |-------|---------|
-| `id` | unique key within the profile; also the local-app folder name for `source: "local"` |
-| `source` | `"winget"` or `"local"` |
-| `wingetId` | winget package Id (required when `source: "winget"`) |
+| `id` | unique display key within the profile |
+| `local` | `apps/<local>/` folder id — omit for a winget-only app |
+| `winget` | winget package Id — omit for a local-only app (e.g. `7zip`) |
 | `enabled` | include this app in the run (the checkbox) |
 | `required` | a failure here → "SUCCESS WITH WARNINGS"; optional failures are informational |
+
+At least one of `local` / `winget` must be present. **Resolution order per app:**
+`local` (if `apps/<local>/app.json` + payload present) → `winget` (if available) →
+if winget is missing, bootstrap it from `tools/winget/` then retry → otherwise the app
+is **skipped with a clear reason**.
+
+Legacy `{ "id", "source": "winget"|"local", "wingetId" }` entries are still accepted
+(`source: "local"` ⇒ `local` = `id`; `source: "winget"` ⇒ `winget` = `wingetId` or `id`).
 
 ### `config[]`
 | Field | Meaning |
@@ -67,8 +80,10 @@ Shipped in `profiles/`, loaded by `ProfileLoader`, chosen with `--profile <name>
 | `enabled` | apply this tweak |
 | `args` | tweak-specific parameters (only some tweaks take them) |
 
-Unknown top-level keys, unknown tweak ids, duplicate app ids, or a `local` app with no
-`apps/<id>/app.json` on disk → validation error (fail fast).
+Unknown top-level keys, unknown tweak ids, duplicate app ids, or an app entry with
+neither `local` nor `winget` → validation error (fail fast). A `local` id whose
+`apps/<id>/app.json` is missing is not a load-time error — the app is skipped at run
+time (with `winget` used instead when present).
 
 ---
 
@@ -76,16 +91,20 @@ Unknown top-level keys, unknown tweak ids, duplicate app ids, or a `local` app w
 
 ```
 apps/
-  winrar/        app.json + winrar-x64-550.exe       (kind: installer)
-  adobe-reader/  app.json + AcroRdrDC....exe          (kind: installer)
-  7zip/          app.json + 7z2408-x64.exe            (kind: installer)
-  wu10man/       app.json + Wu10Man_2.1.0.msi         (kind: installer)
-  aact/          app.json + aact-4.0-portable.7z      (kind: portable)
-  kmsoffline/    app.json + kmsoffline-2.4.7.7z       (kind: portable)
+  chrome/        app.json + ChromeStandaloneSetup64.exe   (installer)
+  zoom/          app.json + ZoomInstallerFull.msi          (installer)
+  firefox/       app.json + "Firefox Setup.exe"            (installer)
+  winrar/        app.json + winrar-x64-550.exe             (kind: installer)
+  adobe-reader/  app.json + AcroRdrDC....exe               (kind: installer)
+  7zip/          app.json + 7z2408-x64.exe                 (kind: installer)
+  wu10man/       app.json + Wu10Man_2.1.0.msi              (kind: installer)
+  aact/          app.json + "AAct 4.0 Portable.kuyhAa.7z"    (kind: portable)
+  kmsoffline/    app.json + KMSOffline_2.4.7.kuyhAa.7z       (kind: portable)
 ```
 
 The folder name is the app **id**. Profiles reference it as
-`{ "id": "<folder>", "source": "local", "enabled": true }`.
+`{ "id": "<folder>", "local": "<folder>", "enabled": true }` (optionally with a
+`"winget"` fallback).
 The installer / archive files are **gitignored** — you drop them in on the USB drive.
 A missing installer/archive or a bad `app.json` ⇒ the app is **skipped with a clear
 reason** (not silently "would install").

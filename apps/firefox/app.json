@@ -1,0 +1,11 @@
+{
+  "name": "Mozilla Firefox",
+  "kind": "installer",
+  "installer": "Firefox Setup.exe",
+  "silentArgs": ["/S"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\Mozilla\\Mozilla Firefox", "HKLM\\SOFTWARE\\WOW6432Node\\Mozilla\\Mozilla Firefox"]
+  },
+  "expectedExitCodes": [0]
+}

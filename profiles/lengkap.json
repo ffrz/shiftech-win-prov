@@ -1,8 +1,9 @@
 {
   "name": "lengkap",
-  "description": "Profil komplit dengan semua contoh config tweak dan aplikasi Winget yang umum.",
+  "description": "Profil komplit - semua contoh config tweak dan aplikasi (local dulu, winget fallback).",
   "drivers": {
-    "enabled": true
+    "enabled": true,
+    "providerOrder": "localcache,windowsupdate,mirror"
   },
   "config": [
     { "id": "show-file-extensions", "enabled": true },
@@ -14,13 +15,18 @@
     { "id": "disable-password-expiry", "enabled": true }
   ],
   "applications": [
-    { "id": "Google.Chrome", "source": "winget", "enabled": true, "required": true },
-    { "id": "Mozilla.Firefox", "source": "winget", "enabled": true },
-    { "id": "7zip.7zip", "source": "winget", "enabled": true },
-    { "id": "VideoLAN.VLC", "source": "winget", "enabled": true },
-    { "id": "Microsoft.VSCode", "source": "winget", "enabled": true },
-    { "id": "Notepad++.Notepad++", "source": "winget", "enabled": true },
-    { "id": "Git.Git", "source": "winget", "enabled": false },
-    { "id": "Zoom.Zoom", "source": "winget", "enabled": true }
+    { "id": "chrome",       "local": "chrome",       "winget": "Google.Chrome",     "enabled": true, "required": true },
+    { "id": "firefox",      "local": "firefox",      "winget": "Mozilla.Firefox",   "enabled": true },
+    { "id": "zoom",         "local": "zoom",         "winget": "Zoom.Zoom",         "enabled": true },
+    { "id": "7zip",         "local": "7zip",                                        "enabled": true },
+    { "id": "winrar",       "local": "winrar",                                      "enabled": true },
+    { "id": "adobe-reader", "local": "adobe-reader",                                "enabled": true },
+    { "id": "wu10man",      "local": "wu10man",                                     "enabled": true },
+    { "id": "aact",         "local": "aact",                                        "enabled": true },
+    { "id": "kmsoffline",   "local": "kmsoffline",                                  "enabled": true },
+    { "id": "vlc",          "winget": "VideoLAN.VLC",                               "enabled": true },
+    { "id": "vscode",       "winget": "Microsoft.VisualStudioCode",                 "enabled": false },
+    { "id": "notepadpp",    "winget": "Notepad++.Notepad++",                        "enabled": true },
+    { "id": "git",          "winget": "Git.Git",                                    "enabled": false }
   ]
 }

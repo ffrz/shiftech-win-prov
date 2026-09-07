@@ -1,0 +1,11 @@
+{
+  "name": "Zoom",
+  "kind": "installer",
+  "installer": "ZoomInstallerFull.msi",
+  "silentArgs": ["ZoomAutoUpdate=true"],
+  "detect": {
+    "type": "arp",
+    "name": "Zoom"
+  },
+  "expectedExitCodes": [0, 3010, 1641]
+}

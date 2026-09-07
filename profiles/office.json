@@ -8,13 +8,12 @@
   },
 
   "applications": [
-    { "id": "chrome",       "source": "winget", "wingetId": "Google.Chrome",        "enabled": true,  "required": true },
-    { "id": "7zip",         "source": "winget", "wingetId": "7zip.7zip",             "enabled": true,  "required": true },
-    { "id": "winrar",       "source": "local",                                      "enabled": true,  "required": false },
-    { "id": "adobe-reader", "source": "local",                                      "enabled": true,  "required": false },
-    { "id": "office",       "source": "winget", "wingetId": "Microsoft.Office",      "enabled": false, "required": false },
-    { "id": "libreoffice",  "source": "winget", "wingetId": "TheDocumentFoundation.LibreOffice", "enabled": false, "required": false },
-    { "id": "zoom",         "source": "winget", "wingetId": "Zoom.Zoom",             "enabled": false, "required": false }
+    { "id": "chrome",       "local": "chrome",       "winget": "Google.Chrome", "enabled": true,  "required": true },
+    { "id": "zoom",         "local": "zoom",         "winget": "Zoom.Zoom",     "enabled": true,  "required": false },
+    { "id": "7zip",         "local": "7zip",                                    "enabled": true,  "required": true },
+    { "id": "winrar",       "local": "winrar",                                  "enabled": true,  "required": false },
+    { "id": "adobe-reader", "local": "adobe-reader",                            "enabled": true,  "required": false },
+    { "id": "libreoffice",  "winget": "TheDocumentFoundation.LibreOffice",      "enabled": false, "required": false }
   ],
 
   "config": [

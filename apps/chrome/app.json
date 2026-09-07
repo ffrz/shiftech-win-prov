@@ -1,0 +1,11 @@
+{
+  "name": "Google Chrome",
+  "kind": "installer",
+  "installer": "ChromeStandaloneSetup64.exe",
+  "silentArgs": ["/silent", "/install"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\Google\\Chrome", "HKLM\\SOFTWARE\\WOW6432Node\\Google\\Chrome"]
+  },
+  "expectedExitCodes": [0]
+}

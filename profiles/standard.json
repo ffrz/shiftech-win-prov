@@ -10,14 +10,15 @@
   },
 
   "applications": [
-    { "id": "chrome",        "source": "winget", "wingetId": "Google.Chrome",         "enabled": true,  "required": true },
-    { "id": "7zip",          "source": "winget", "wingetId": "7zip.7zip",             "enabled": true,  "required": true },
-    { "id": "winrar",        "source": "local",                                       "enabled": true,  "required": false },
-    { "id": "adobe-reader",  "source": "local",                                       "enabled": true,  "required": false },
-    { "id": "Zoom.Zoom",     "source": "winget",                                      "enabled": true,  "required": false },
-    { "id": "aact",          "source": "local",                                       "enabled": true,  "required": false },
-    { "id": "kmsoffline",    "source": "local",                                       "enabled": true,  "required": false },
-    { "id": "wu10man",       "source": "local",                                       "enabled": true,  "required": false }
+    { "id": "chrome",       "local": "chrome",       "winget": "Google.Chrome", "enabled": true,  "required": true },
+    { "id": "zoom",         "local": "zoom",         "winget": "Zoom.Zoom",     "enabled": true,  "required": false },
+    { "id": "7zip",         "local": "7zip",                                    "enabled": true,  "required": true },
+    { "id": "winrar",       "local": "winrar",                                  "enabled": true,  "required": false },
+    { "id": "adobe-reader", "local": "adobe-reader",                            "enabled": true,  "required": false },
+    { "id": "firefox",      "local": "firefox",      "winget": "Mozilla.Firefox", "enabled": false, "required": false },
+    { "id": "wu10man",      "local": "wu10man",                                 "enabled": true,  "required": false },
+    { "id": "aact",         "local": "aact",                                    "enabled": true,  "required": false },
+    { "id": "kmsoffline",   "local": "kmsoffline",                              "enabled": true,  "required": false }
   ],
 
   "config": [
