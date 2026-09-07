@@ -18,12 +18,17 @@ apps/
   wu10man/       app.json + Wu10Man_2.1.0.msi
   aact/          app.json + "AAct 4.0 Portable.kuyhAa.7z"    (kind: portable -> %DESKTOP%\AAct)
   kmsoffline/    app.json + KMSOffline_2.4.7.kuyhAa.7z       (kind: portable -> %DESKTOP%\KMSOffline)
+  office-2010/   app.json + config.xml        + <ProPlus 2010 volume>.iso   (kind: iso)
+  office-2013/   app.json + config.xml        + <ProPlus 2013 volume>.iso   (kind: iso)
+  office-2016/   app.json + config.xml        + <ProPlusVL 2016>.iso        (kind: iso)
+  office-2019/   app.json + configuration.xml + setup.exe (ODT) + <2019 VL>.iso  (kind: iso)
 ```
 
-## The installer / archive files are NOT in git
+## The installer / archive / image files are NOT in git
 
-`*.exe`, `*.msi`, `*.7z`, `*.zip` under `apps/` are gitignored. Only the `app.json`
-manifests are tracked. Put the actual files in each folder on the USB drive.
+`*.exe`, `*.msi`, `*.7z`, `*.zip`, `*.iso`, `*.img` under `apps/` are gitignored. Only
+the `app.json` manifests (and the Office `config.xml` / `configuration.xml` answer
+files) are tracked. Put the actual payload files in each folder on the USB drive.
 `build-release.ps1` copies whatever is present into `dist/`.
 
 If a manifest's `installer`/`archive` file is missing, that app is **skipped with a clear

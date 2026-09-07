@@ -1,0 +1,15 @@
+{
+  "name": "Microsoft Office 2010 (ProPlus, volume)",
+  "kind": "iso",
+  "image": "office-2010-proplus-x86.iso",
+  "setup": "setup.exe",
+  "setupArgs": ["/config", "%APP%\\config.xml"],
+  "detect": {
+    "type": "registry",
+    "keys": [
+      "HKLM\\SOFTWARE\\Microsoft\\Office\\14.0\\Common\\InstallRoot",
+      "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Office\\14.0\\Common\\InstallRoot"
+    ]
+  },
+  "expectedExitCodes": [0, 3010]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Microsoft Office 2019 (ProPlus 2019 Volume, C2R via ODT)",
+  "kind": "iso",
+  "image": "office-2019-proplus2019volume.iso",
+  "setup": "setup.exe",
+  "setupFrom": "app",
+  "setupArgs": ["/configure", "%APP%\\configuration.xml"],
+  "detect": {
+    "type": "registry",
+    "keys": [
+      "HKLM\\SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration",
+      "HKLM\\SOFTWARE\\Microsoft\\Office\\16.0\\Common\\InstallRoot"
+    ]
+  },
+  "expectedExitCodes": [0, 3010]
+}

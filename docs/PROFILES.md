@@ -100,6 +100,8 @@ apps/
   wu10man/       app.json + Wu10Man_2.1.0.msi              (kind: installer)
   aact/          app.json + "AAct 4.0 Portable.kuyhAa.7z"    (kind: portable)
   kmsoffline/    app.json + KMSOffline_2.4.7.kuyhAa.7z       (kind: portable)
+  office-2016/   app.json + config.xml + office-2016-proplusvl-x86.iso   (kind: iso)
+  office-2019/   app.json + configuration.xml + setup.exe (ODT) + <2019 VL>.iso  (kind: iso)
 ```
 
 The folder name is the app **id**. Profiles reference it as
@@ -161,8 +163,44 @@ target.
 | `shortcutName` | shortcut file name (default = `name`) |
 | `detect.type: "folder"` | "installed" = `extractTo` (or a listed path) exists and is non-empty |
 
-`LocalInstallerProvider` never runs anything that isn't the declared installer/archive
-tool. `provisioner reset` does **not** auto-undo local apps — remove installers via
+### `kind: "iso"` — mount an .iso/.img and run its setup
+
+For products delivered as a disc image — chiefly **Microsoft Office** volume media.
+The provisioner mounts the image with `Mount-DiskImage` (native Windows 8+, no driver),
+runs the setup program with your silent answer file, then always dismounts — even if
+setup fails.
+
+```json
+{
+  "name": "Microsoft Office 2016 (ProPlus VL, MSI)",
+  "kind": "iso",
+  "image": "office-2016-proplusvl-x86.iso",
+  "setup": "setup.exe",
+  "setupArgs": ["/config", "%APP%\\config.xml"],
+  "detect": {
+    "type": "registry",
+    "keys": ["HKLM\\SOFTWARE\\Microsoft\\Office\\16.0\\Common\\InstallRoot"]
+  },
+  "expectedExitCodes": [0, 3010]
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `image` | `.iso` or `.img` next to `app.json` (gitignored — staged on the USB drive) |
+| `setup` | setup program to run (default `setup.exe`) |
+| `setupFrom` | `"iso"` (default — `setup` is relative to the mounted image root) or `"app"` (`setup` is a program bundled in `apps/<id>/`, e.g. the Office Deployment Tool; the image only supplies payload) |
+| `setupArgs` | args passed to setup. `%ISO%` ⇒ the mounted drive root (e.g. `D:\`), `%APP%` ⇒ the `apps/<id>/` folder |
+| `detect.type` | same options as `installer` — usually `registry` on the Office `InstallRoot` key |
+| `expectedExitCodes` | success codes (default `[0, 1641, 3010]`) |
+
+The Office answer files (`config.xml` / `configuration.xml`) live in each
+`apps/office-*/` folder and **are tracked in git** — only the ISO is not. See
+`apps/office-2016/README.md` (etc.) for the exact media each expects and how to build
+a MAK answer file. No auto-reboot (V1 rule) regardless of the answer file.
+
+`LocalInstallerProvider` never runs anything that isn't the declared installer/archive/
+setup tool. `provisioner reset` does **not** auto-undo local apps — remove installers via
 Add/Remove Programs, portable folders by deleting them.
 
 ---

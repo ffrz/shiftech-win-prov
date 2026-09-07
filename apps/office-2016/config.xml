@@ -1,0 +1,19 @@
+<!--
+  Office 2016 volume-license (MSI, Professional Plus) silent-install answer file.
+  Passed to setup.exe as:  setup.exe /config <this file>
+  This is the classic Windows Installer edition from the VLSC (proplus.ww\setup.exe),
+  NOT the Click-to-Run / ODT edition.
+  See https://learn.microsoft.com/office/deploy-office-2016/configure-a-silent-installation-of-office-2016
+
+  Display Level="None"  -> no UI at all, no feature/checkbox screen
+  AcceptEula="TRUE"     -> no EULA prompt
+  REBOOT=ReallySuppress -> never auto-reboot (V1 rule)
+-->
+<Configuration Product="ProPlusVL">
+  <Display Level="None" CompletionNotice="No" SuppressModal="Yes" AcceptEula="TRUE" />
+  <Setting Id="SETUP_REBOOT" Value="Never" />
+  <Setting Id="REBOOT" Value="ReallySuppress" />
+  <Logging Type="standard" Path="%TEMP%" Template="Office2016Setup(*).log" />
+  <!-- MAK only; volume GVLK ISOs don't need this -->
+  <!-- <PIDKEY Value="XXXXXXXXXXXXXXXXXXXXXXXXX" /> -->
+</Configuration>

@@ -1,0 +1,18 @@
+<!--
+  Office 2013 volume-license (MSI) silent-install answer file.
+  Passed to setup.exe as:  setup.exe /config <this file>
+  See https://learn.microsoft.com/office/deploy-earlier-versions/cc179195(v=office.15)
+
+  Display Level="None"  -> fully silent, no "install type" screen, no checkboxes
+  AcceptEula="TRUE"     -> no EULA prompt
+  CompletionNotice / SuppressModal -> no end dialog, no modal error boxes
+  REBOOT=ReallySuppress -> never auto-reboot (V1 rule)
+-->
+<Configuration Product="ProPlus">
+  <Display Level="None" CompletionNotice="No" SuppressModal="Yes" AcceptEula="TRUE" />
+  <Setting Id="SETUP_REBOOT" Value="Never" />
+  <Setting Id="REBOOT" Value="ReallySuppress" />
+  <Logging Type="standard" Path="%TEMP%" Template="Office2013Setup(*).log" />
+  <!-- MAK only; volume GVLK ISOs don't need this -->
+  <!-- <PIDKEY Value="XXXXXXXXXXXXXXXXXXXXXXXXX" /> -->
+</Configuration>

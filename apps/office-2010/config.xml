@@ -1,0 +1,22 @@
+<!--
+  Office 2010 volume-license silent-install answer file.
+  Passed to setup.exe as:  setup.exe /config <this file>
+  See https://learn.microsoft.com/office/deploy-earlier-versions/cc178956(v=office.14)
+
+  Display Level="none"     -> no UI, no progress bar, no "choose install type" screen
+  CompletionNotice="no"    -> no "installation complete" dialog
+  SuppressModal="yes"      -> suppress error dialogs (logged instead)
+  AcceptEula="yes"         -> no EULA checkbox prompt
+  Setting REBOOT=ReallySuppress -> never auto-reboot (V1 rule)
+-->
+<Configuration Product="ProPlus">
+  <Display Level="none" CompletionNotice="no" SuppressModal="yes" AcceptEula="yes" />
+  <Setting Id="SETUP_REBOOT" Value="Never" />
+  <Setting Id="REBOOT" Value="ReallySuppress" />
+  <Logging Type="standard" Path="%TEMP%" Template="Office2010Setup(*).log" />
+  <!--
+    Product key: only needed for MAK. KMS / volume ISOs that already embed a
+    GVLK don't need this line - leave it commented unless you have a MAK.
+  -->
+  <!-- <PIDKEY Value="XXXXXXXXXXXXXXXXXXXXXXXXX" /> -->
+</Configuration>

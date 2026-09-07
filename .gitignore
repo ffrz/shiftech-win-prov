@@ -36,6 +36,8 @@ desktop.ini
 /apps/**/*.msi
 /apps/**/*.7z
 /apps/**/*.zip
+/apps/**/*.iso
+/apps/**/*.img
 /tools/*.exe
 /tools/*.dll
 # Bundled App Installer packages for winget bootstrap (large, license-restricted)

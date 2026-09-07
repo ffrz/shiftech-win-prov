@@ -13,7 +13,12 @@
     { "id": "7zip",         "local": "7zip",                                    "enabled": true,  "required": true },
     { "id": "winrar",       "local": "winrar",                                  "enabled": true,  "required": false },
     { "id": "adobe-reader", "local": "adobe-reader",                            "enabled": true,  "required": false },
-    { "id": "libreoffice",  "winget": "TheDocumentFoundation.LibreOffice",      "enabled": false, "required": false }
+    { "id": "libreoffice",  "winget": "TheDocumentFoundation.LibreOffice",      "enabled": false, "required": false },
+
+    { "id": "office-2010",  "local": "office-2010",                             "enabled": false, "required": false },
+    { "id": "office-2013",  "local": "office-2013",                             "enabled": false, "required": false },
+    { "id": "office-2016",  "local": "office-2016",                             "enabled": false, "required": false },
+    { "id": "office-2019",  "local": "office-2019",                             "enabled": false, "required": false }
   ],
 
   "config": [

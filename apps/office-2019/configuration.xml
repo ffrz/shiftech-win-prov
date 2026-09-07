@@ -1,0 +1,29 @@
+<!--
+  Office 2019 Volume License - Office Deployment Tool (ODT) configuration.
+  Office 2019 has NO classic MSI edition; the VL media is Click-to-Run, driven by
+  the ODT setup.exe:   setup.exe /configure <this file>
+  See https://learn.microsoft.com/deployoffice/office2019/deploy
+
+  Display Level="None" + AcceptEULA="TRUE"  -> fully silent, no prompts, no checkboxes
+  SourcePath = the mounted ISO root (%ISO%), so no download is needed - it installs
+  from the Office\Data payload already on the volume-license ISO.
+  Channel PerpetualVL2019 = the 2019 perpetual (non-subscription) build.
+  Updates disabled: this is a one-shot bench install; no auto-reboot.
+-->
+<Configuration>
+  <Add SourcePath="%ISO%" OfficeClientEdition="32" Channel="PerpetualVL2019">
+    <Product ID="ProPlus2019Volume" PIDKEY="NMMKJ-6RK4F-KMJVX-8D9MJ-6MWKP">
+      <Language ID="en-us" />
+      <Language ID="MatchOS" />
+    </Product>
+  </Add>
+  <Display Level="None" AcceptEULA="TRUE" />
+  <Property Name="AUTOACTIVATE" Value="1" />
+  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
+  <Updates Enabled="FALSE" />
+  <RemoveMSI />
+  <!--
+    PIDKEY above is Microsoft's published GVLK for Office LTSC/2019 ProPlus Volume
+    (activates against KMS/ADBA). Replace only if you use a MAK.
+  -->
+</Configuration>
