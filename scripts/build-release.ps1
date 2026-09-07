@@ -142,6 +142,16 @@ if (Test-Path $sevenZa) {
 } else {
     Write-Host "   NOTE: tools\7za.exe not found - .7z portable apps will need 7-Zip on the target"
 }
+
+# tools\winget\ : App Installer .msixbundle + deps, for bootstrapping winget on Win10
+$wingetDir = Join-Path $RepoRoot 'tools\winget'
+if ((Test-Path $wingetDir) -and (Get-ChildItem $wingetDir -Include *.msixbundle,*.msix,*.appx,*.appxbundle -File -ErrorAction SilentlyContinue)) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'tools\winget') | Out-Null
+    Copy-Item (Join-Path $wingetDir '*') -Destination (Join-Path $StageDir 'tools\winget') -Recurse -Force
+    Write-Host "   bundled tools\winget\ (winget bootstrap)"
+} else {
+    Write-Host "   NOTE: tools\winget\ empty - winget apps will be skipped on machines without winget (see tools\winget\README.md)"
+}
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'cache')  | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $StageDir 'logs')   | Out-Null
 New-Item -ItemType File -Force -Path (Join-Path $StageDir 'cache\.keep') | Out-Null

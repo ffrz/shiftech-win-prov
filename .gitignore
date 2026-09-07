@@ -38,6 +38,11 @@ desktop.ini
 /apps/**/*.zip
 /tools/*.exe
 /tools/*.dll
+# Bundled App Installer packages for winget bootstrap (large, license-restricted)
+/tools/winget/*.msix
+/tools/winget/*.msixbundle
+/tools/winget/*.appx
+/tools/winget/*.appxbundle
 
 build2
 b3
