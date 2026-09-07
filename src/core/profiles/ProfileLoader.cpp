@@ -36,9 +36,8 @@ QJsonObject Profile::toJson() const {
     for (const auto& a : applications) {
         QJsonObject o;
         o["id"] = QString::fromStdString(a.id);
-        o["source"] = a.source == AppSource::Local ? "local" : "winget";
-        if (a.source == AppSource::WinGet)
-            o["wingetId"] = QString::fromStdString(a.wingetId);
+        if (a.hasLocal()) o["local"] = QString::fromStdString(a.localId);
+        if (a.hasWinget()) o["winget"] = QString::fromStdString(a.wingetId);
         o["enabled"] = a.enabled;
         o["required"] = a.required;
         apps.append(o);
@@ -139,11 +138,18 @@ std::variant<Profile, ProfileLoadError> ProfileLoader::load(const std::string& p
     }
 
     // --- applications ---
+    // New shape:  { "id": "chrome", "local": "chrome", "winget": "Google.Chrome", ... }
+    //   - "local"  : apps/<value>/ folder (a local installer/archive)
+    //   - "winget" : winget package id
+    //   - at least one of the two must be present
+    // Legacy shape (still accepted): { "id", "source": "winget"|"local", "wingetId" }
     std::unordered_set<std::string> ids;
     for (const auto& v : root.value("applications").toArray()) {
         if (!v.isObject()) return E{"each application entry must be an object"};
         const QJsonObject a = v.toObject();
-        if (!onlyKeys(a, {"id", "source", "wingetId", "enabled", "required"}, badKey))
+        if (!onlyKeys(a, {"id", "local", "winget", "source", "wingetId", "enabled",
+                          "required"},
+                      badKey))
             return E{"unknown key in application entry: '" + badKey + "'"};
 
         AppEntry e;
@@ -151,14 +157,27 @@ std::variant<Profile, ProfileLoadError> ProfileLoader::load(const std::string& p
         if (e.id.empty()) return E{"application entry missing 'id'"};
         if (!ids.insert(e.id).second) return E{"duplicate application id '" + e.id + "'"};
 
-        const QString src = a.value("source").toString("winget");
-        if (src == "winget") e.source = AppSource::WinGet;
-        else if (src == "local") e.source = AppSource::Local;
-        else return E{"application '" + e.id + "': source must be 'winget' or 'local'"};
+        e.localId = a.value("local").toString().toStdString();
+        e.wingetId = a.value("winget").toString().toStdString();
 
-        e.wingetId = a.value("wingetId").toString().toStdString();
-        if (e.source == AppSource::WinGet && e.wingetId.empty())
-            e.wingetId = e.id; // allow shorthand: id == wingetId
+        // Legacy fallback: source/wingetId.
+        if (e.localId.empty() && e.wingetId.empty() && a.contains("source")) {
+            const QString src = a.value("source").toString("winget");
+            if (src == "local") {
+                e.localId = e.id;
+            } else if (src == "winget") {
+                e.wingetId = a.value("wingetId").toString().toStdString();
+                if (e.wingetId.empty()) e.wingetId = e.id;
+            } else {
+                return E{"application '" + e.id + "': source must be 'winget' or 'local'"};
+            }
+        }
+        // Very old shorthand: bare { "id": "Google.Chrome", "required": true }.
+        if (e.localId.empty() && e.wingetId.empty()) e.wingetId = e.id;
+
+        if (e.localId.empty() && e.wingetId.empty())
+            return E{"application '" + e.id + "': needs a 'local' or 'winget' source"};
+
         e.enabled = a.value("enabled").toBool(true);
         e.required = a.value("required").toBool(false);
         p.applications.push_back(e);

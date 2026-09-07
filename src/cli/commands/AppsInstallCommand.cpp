@@ -87,9 +87,25 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
 
     WinGetProvider winget;
     LocalInstallerProvider local(parser.value(appsDirOpt));
-    const bool wingetOk = winget.isAvailable();
 
     const auto apps = profile.enabledApps();
+
+    // If any enabled app needs winget (no usable local source) and winget is missing,
+    // try to bootstrap it from the bundled App Installer (skipped in --dry-run).
+    bool wingetNeeded = false;
+    for (const auto& app : apps) {
+        const bool localUsable = app.hasLocal() && local.manifestError(app.localId).empty();
+        if (!localUsable && app.hasWinget()) { wingetNeeded = true; break; }
+    }
+    bool wingetOk = winget.isAvailable();
+    if (wingetNeeded && !wingetOk && !dryRun) {
+        const auto b = winget.bootstrap();
+        wingetOk = winget.isAvailable();
+        if (!json)
+            out << "winget bootstrap: " << (wingetOk ? "OK" : "failed") << " — "
+                << QString::fromStdString(b.detail) << "\n";
+    }
+
     int installed = 0, already = 0, failed = 0, failedRequired = 0, skipped = 0;
     QJsonArray items;
 
@@ -99,40 +115,43 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
         out << "Profile: " << QString::fromStdString(profile.name) << " — "
             << QString::fromStdString(profile.description) << "\n";
         out << "Applications (enabled): " << apps.size() << "\n";
-        if (!wingetOk)
-            out << "winget: NOT AVAILABLE — winget-sourced apps will be skipped\n";
+        if (wingetNeeded && !wingetOk)
+            out << "winget: NOT AVAILABLE — apps with no local fallback will be skipped\n";
         out << "----------------------------------------\n";
     }
 
     for (const auto& app : apps) {
-        const bool isLocal = app.source == AppSource::Local;
-        ApplicationProvider& prov = isLocal
-            ? static_cast<ApplicationProvider&>(local)
-            : static_cast<ApplicationProvider&>(winget);
-        const std::string key = isLocal ? app.id : app.wingetId;
+        const std::string localErr =
+            app.hasLocal() ? local.manifestError(app.localId) : std::string("no local source");
+        const bool useLocal = app.hasLocal() && localErr.empty();
+        const bool useWinget = !useLocal && app.hasWinget() && wingetOk;
+
+        ApplicationProvider* prov = useLocal ? static_cast<ApplicationProvider*>(&local)
+                                  : useWinget ? static_cast<ApplicationProvider*>(&winget)
+                                              : nullptr;
+        const std::string key = useLocal ? app.localId : app.wingetId;
+        const QString srcLabel = useLocal ? "local" : useWinget ? "winget" : "-";
 
         QJsonObject item;
         item["id"] = QString::fromStdString(app.id);
-        item["source"] = isLocal ? "local" : "winget";
+        item["source"] = srcLabel;
         item["required"] = app.required;
 
-        const std::string localErr = isLocal ? local.manifestError(app.id) : std::string();
-
         QString status;
-        if (isLocal && !localErr.empty()) {
-            status = "skipped";
-            item["reason"] = QString::fromStdString(localErr);
+        if (!prov) {
+            status = app.hasWinget() ? "skipped_no_winget" : "skipped";
+            item["reason"] =
+                app.hasLocal() && !app.hasWinget()
+                    ? QString::fromStdString("local: " + localErr)
+                    : QString("no usable source");
             ++skipped;
-        } else if (!isLocal && !wingetOk) {
-            status = "skipped_no_winget";
-            ++skipped;
-        } else if (prov.isInstalled(key)) {
+        } else if (prov->isInstalled(key)) {
             status = "already_installed";
             ++already;
         } else if (dryRun) {
             status = "would_install";
         } else {
-            const InstallResult r = prov.install(key, {});
+            const InstallResult r = prov->install(key, {});
             if (r.ok) {
                 status = "installed";
                 ++installed;
@@ -148,11 +167,8 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
 
         if (!json) {
             out << "  " << QString::fromStdString(app.id).leftJustified(20)
-                << QString(isLocal ? "local " : "winget").leftJustified(8)
-                << status
-                << (app.required && status == "failed" ? "  (REQUIRED)" : "")
-                << (localErr.empty() ? "" : "  - " + QString::fromStdString(localErr))
-                << "\n";
+                << srcLabel.leftJustified(8) << status
+                << (app.required && status == "failed" ? "  (REQUIRED)" : "") << "\n";
         }
     }
 
@@ -181,10 +197,9 @@ int AppsInstallCommand::execute(const std::vector<std::string>& args) {
     }
     out.flush();
 
-    // Exit: 2 already handled (profile). 1 = warnings (a required app failed, or
-    // everything was skipped because winget is missing). 0 = clean.
-    if (failedRequired > 0) return 1;
-    if (!wingetOk && skipped > 0) return 1;
+    // Exit: 2 already handled (profile). 1 = warnings (a required app failed, or any
+    // app was skipped for lack of a usable source). 0 = clean.
+    if (failedRequired > 0 || skipped > 0) return 1;
     return 0;
 }
 

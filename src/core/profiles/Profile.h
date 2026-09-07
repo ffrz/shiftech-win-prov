@@ -17,14 +17,18 @@ struct DriverSection {
 };
 
 // --- applications section ---
-enum class AppSource { WinGet, Local };
-
+//
+// An app entry can have a local installer (apps/<localId>/), a winget id, or both.
+// Resolution order at install time: local first, then winget as a fallback.
 struct AppEntry {
-    std::string id;                       // unique key; also apps/<id>/ folder for Local
-    AppSource source = AppSource::WinGet;
-    std::string wingetId;                 // required when source == WinGet
+    std::string id;                       // unique display key within the profile
+    std::string localId;                  // apps/<localId>/ folder; "" => no local source
+    std::string wingetId;                 // winget package id; "" => no winget source
     bool enabled = true;
     bool required = false;
+
+    bool hasLocal() const { return !localId.empty(); }
+    bool hasWinget() const { return !wingetId.empty(); }
 };
 
 // --- config section ---

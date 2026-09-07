@@ -8,9 +8,9 @@
     "exclude": ["USB\\VID_0BDA&PID_8153"]
   },
   "applications": [
-    { "id": "chrome", "source": "winget", "wingetId": "Google.Chrome", "enabled": true, "required": true },
-    { "id": "winrar", "source": "local", "enabled": true },
-    { "id": "vlc",    "source": "winget", "wingetId": "VideoLAN.VLC", "enabled": false }
+    { "id": "chrome", "local": "chrome", "winget": "Google.Chrome", "enabled": true, "required": true },
+    { "id": "winrar", "local": "winrar", "enabled": true },
+    { "id": "vlc",    "winget": "VideoLAN.VLC", "enabled": false }
   ],
   "config": [
     { "id": "show-file-extensions", "enabled": true },

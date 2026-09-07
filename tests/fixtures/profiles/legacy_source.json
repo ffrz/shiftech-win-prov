@@ -1,0 +1,8 @@
+{
+  "name": "legacy_source",
+  "description": "Old-style profile with source/wingetId keys",
+  "applications": [
+    { "id": "firefox", "source": "winget", "wingetId": "Mozilla.Firefox", "enabled": true },
+    { "id": "winrar",  "source": "local", "enabled": true }
+  ]
+}

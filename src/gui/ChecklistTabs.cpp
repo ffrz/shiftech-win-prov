@@ -185,12 +185,16 @@ void ChecklistTabs::buildAppsTab() {
     applications::LocalInstallerProvider local;
     std::vector<profiles::AppEntry> rows = m_seed.applications;
     std::set<std::string> have;
-    for (const auto& a : rows) have.insert(a.id);
+    for (const auto& a : rows) {
+        have.insert(a.id);
+        if (a.hasLocal()) have.insert(a.localId);
+    }
+    // Add any local apps on the medium that the profile doesn't list.
     for (const auto& m : local.available()) {
         if (have.count(m.id)) continue;
         profiles::AppEntry e;
         e.id = m.id;
-        e.source = profiles::AppSource::Local;
+        e.localId = m.id;
         e.enabled = false;
         rows.push_back(e);
     }
@@ -201,16 +205,19 @@ void ChecklistTabs::buildAppsTab() {
         m_appTable->insertRow(r);
         checkCell(m_appTable, r, a.enabled);
 
+        // Column labels for the source: local, winget, or "local -> winget" (fallback).
+        QString src;
+        if (a.hasLocal() && a.hasWinget()) src = "local -> winget";
+        else if (a.hasLocal()) src = "local drive";
+        else src = "winget";
+
         auto* idItem = textCell(QString::fromStdString(a.id));
-        idItem->setData(Qt::UserRole, QString::fromStdString(a.wingetId));
-        idItem->setData(Qt::UserRole + 1,
-                        a.source == profiles::AppSource::Local ? "local" : "winget");
+        idItem->setData(Qt::UserRole, QString::fromStdString(a.localId));    // local folder
+        idItem->setData(Qt::UserRole + 1, QString::fromStdString(a.wingetId));
         idItem->setData(Qt::UserRole + 2, a.required);  // carried through, not shown/edited
         if (a.required) idItem->setToolTip("required by the profile");
         m_appTable->setItem(r, 1, idItem);
-        m_appTable->setItem(
-            r, 2,
-            textCell(a.source == profiles::AppSource::Local ? "local drive" : "winget"));
+        m_appTable->setItem(r, 2, textCell(src));
     }
 }
 
@@ -268,11 +275,9 @@ core::profiles::Profile ChecklistTabs::effectiveProfile() const {
         profiles::AppEntry e;
         auto* idItem = m_appTable->item(r, 1);
         e.id = idItem->text().toStdString();
-        e.wingetId = idItem->data(Qt::UserRole).toString().toStdString();
-        e.source = idItem->data(Qt::UserRole + 1).toString() == "local"
-                       ? profiles::AppSource::Local
-                       : profiles::AppSource::WinGet;
-        if (e.source == profiles::AppSource::WinGet && e.wingetId.empty()) e.wingetId = e.id;
+        e.localId = idItem->data(Qt::UserRole).toString().toStdString();
+        e.wingetId = idItem->data(Qt::UserRole + 1).toString().toStdString();
+        if (e.localId.empty() && e.wingetId.empty()) e.wingetId = e.id;
         e.enabled = checkAt(m_appTable, r)->isChecked();
         e.required = idItem->data(Qt::UserRole + 2).toBool();  // from the profile, not the GUI
         p.applications.push_back(e);

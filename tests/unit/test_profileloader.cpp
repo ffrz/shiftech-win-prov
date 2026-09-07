@@ -27,10 +27,12 @@ private slots:
         QCOMPARE(p.applications.size(), size_t(3));
         QCOMPARE(p.enabledApps().size(), size_t(2));
         QCOMPARE(p.applications[0].id.c_str(), "chrome");
+        QCOMPARE(p.applications[0].localId.c_str(), "chrome");
         QCOMPARE(p.applications[0].wingetId.c_str(), "Google.Chrome");
-        QCOMPARE(p.applications[0].source == AppSource::WinGet, true);
+        QVERIFY(p.applications[0].hasLocal() && p.applications[0].hasWinget());
         QCOMPARE(p.applications[0].required, true);
-        QCOMPARE(p.applications[1].source == AppSource::Local, true);
+        QVERIFY(p.applications[1].hasLocal() && !p.applications[1].hasWinget());
+        QVERIFY(!p.applications[2].hasLocal() && p.applications[2].hasWinget());
         QCOMPARE(p.applications[2].enabled, false);
 
         // config: 2 total, 1 enabled
@@ -51,12 +53,22 @@ private slots:
     }
 
     void backwardCompatOldFormat() {
-        // an "applications" array of {id, required} with no source still loads
+        // legacy shapes: bare {id}, and {id, source:"winget"} — both still load
         auto r = ProfileLoader::load(fixture("legacy.json"));
         QVERIFY(std::holds_alternative<Profile>(r));
         const Profile& p = std::get<Profile>(r);
-        QCOMPARE(p.applications[0].source == AppSource::WinGet, true);
+        QVERIFY(p.applications[0].hasWinget());
         QCOMPARE(p.applications[0].wingetId.c_str(), "Google.Chrome"); // falls back to id
+    }
+
+    void backwardCompatSourceKey() {
+        auto r = ProfileLoader::load(fixture("legacy_source.json"));
+        QVERIFY(std::holds_alternative<Profile>(r));
+        const Profile& p = std::get<Profile>(r);
+        QVERIFY(p.applications[0].hasWinget() && !p.applications[0].hasLocal());
+        QCOMPARE(p.applications[0].wingetId.c_str(), "Mozilla.Firefox");
+        QVERIFY(p.applications[1].hasLocal() && !p.applications[1].hasWinget());
+        QCOMPARE(p.applications[1].localId.c_str(), "winrar");
     }
 
     void rejectsMissingDescription() {

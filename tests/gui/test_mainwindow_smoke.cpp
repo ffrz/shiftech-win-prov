@@ -38,7 +38,6 @@ private slots:
         p.drivers.providerOrder = "localcache";
         AppEntry a;
         a.id = "chrome";
-        a.source = AppSource::WinGet;
         a.wingetId = "Google.Chrome";
         a.enabled = true;
         a.required = true;

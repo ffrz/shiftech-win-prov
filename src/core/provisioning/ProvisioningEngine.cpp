@@ -356,52 +356,94 @@ ProvisioningResult ProvisioningEngine::run(const ProvisioningOptions& opts) {
         const auto apps = profile.enabledApps();
         applications::WinGetProvider winget;
         applications::LocalInstallerProvider local(opts.appsDir);
-        const bool wingetOk = winget.isAvailable();
+
+        // Do any enabled apps actually need winget (no usable local source)?
+        bool wingetNeeded = false;
+        for (const auto& app : apps) {
+            const bool localUsable =
+                app.hasLocal() && local.manifestError(app.localId).empty();
+            if (!localUsable && app.hasWinget()) { wingetNeeded = true; break; }
+        }
+
+        bool wingetOk = winget.isAvailable();
+        if (wingetNeeded && !wingetOk && !opts.dryRun) {
+            ev("application", Severity::Info,
+               "winget not found — trying to set it up from the bundled App Installer…");
+            const auto b = winget.bootstrap(opts.appsDir.isEmpty()
+                                                ? QString()
+                                                : QDir(opts.appsDir).filePath("../tools/winget"));
+            wingetOk = winget.isAvailable();
+            ev("application", wingetOk ? Severity::Success : Severity::Warning,
+               std::string("winget bootstrap: ") + (wingetOk ? "OK" : "failed") + " — " +
+                   b.detail);
+        }
 
         ev("application", Severity::Info,
            "profile '" + profile.name + "': " + std::to_string(apps.size()) +
-               " app(s) selected" + (wingetOk ? "" : " (winget unavailable)"));
+               " app(s) selected" +
+               (wingetNeeded ? (wingetOk ? "" : " (winget unavailable)") : ""));
 
         tick(Stage::AppInstall);
         int i = 0;
         for (const auto& app : apps) {
             if (cancelled()) return finishEarly("during application install");
             const int prog = ++i * 100 / std::max<int>(1, (int)apps.size());
-            const bool isLocal = app.source == profiles::AppSource::Local;
-            applications::ApplicationProvider& prov =
-                isLocal ? static_cast<applications::ApplicationProvider&>(local)
-                        : static_cast<applications::ApplicationProvider&>(winget);
-            const std::string key = isLocal ? app.id : app.wingetId;
 
             AppItemResult ar;
             ar.id = app.id;
             ar.required = app.required;
-            ar.source = isLocal ? "local" : "winget";
-            ar.wingetId = isLocal ? "" : app.wingetId;
 
-            std::string localErr;
-            if (isLocal) localErr = local.manifestError(app.id);
+            // Decide the source: local first (if the manifest + file are there),
+            // then winget as a fallback.
+            const std::string localErr =
+                app.hasLocal() ? local.manifestError(app.localId) : "no local source";
+            const bool useLocal = app.hasLocal() && localErr.empty();
+            const bool useWinget = !useLocal && app.hasWinget() && wingetOk;
 
-            if (isLocal && !localErr.empty()) {
-                ar.status = "skipped";
-                ev("application", Severity::Warning, app.id + ": " + localErr, prog);
-            } else if (!isLocal && !wingetOk) {
-                ar.status = "skipped_no_winget";
-                ev("application", Severity::Warning, app.id + ": skipped (no winget)", prog);
-            } else if (prov.isInstalled(key)) {
+            applications::ApplicationProvider* prov = nullptr;
+            std::string key;
+            if (useLocal) {
+                prov = &local;
+                key = app.localId;
+                ar.source = "local";
+            } else if (useWinget) {
+                prov = &winget;
+                key = app.wingetId;
+                ar.source = "winget";
+                ar.wingetId = app.wingetId;
+            }
+
+            if (!prov) {
+                ar.status = app.hasWinget() ? "skipped_no_winget" : "skipped";
+                std::string why =
+                    app.hasLocal() && !app.hasWinget()
+                        ? ("local: " + localErr)
+                        : app.hasWinget()
+                              ? (app.hasLocal() ? "local unavailable (" + localErr +
+                                                      ") and winget not available"
+                                                : "winget not available")
+                              : "no source configured";
+                ev("application", Severity::Warning, app.id + ": " + why, prog);
+                st.apps.push_back(ar);
+                continue;
+            }
+
+            if (prov->isInstalled(key)) {
                 ar.status = "already_installed";
-                ev("application", Severity::Info, app.id + ": already installed", prog);
+                ev("application", Severity::Info,
+                   app.id + ": already installed (" + ar.source + ")", prog);
             } else if (opts.dryRun) {
                 ar.status = "would_install";
                 ev("application", Severity::Info,
-                   app.id + ": would install via " + (isLocal ? "local installer" : "winget"),
-                   prog);
+                   app.id + ": would install via " + ar.source, prog);
             } else {
-                const auto r = prov.install(key, {});
+                const auto r = prov->install(key, {});
                 ar.status = r.ok ? "installed" : "failed";
                 ar.exitCode = r.exitCode;
                 ev("application", r.ok ? Severity::Success : Severity::Warning,
-                   app.id + (r.ok ? ": installed" : ": FAILED — " + r.log), prog);
+                   app.id + (r.ok ? ": installed via " + ar.source
+                                  : ": FAILED (" + ar.source + ") — " + r.log),
+                   prog);
             }
             st.apps.push_back(ar);
         }
